@@ -90,7 +90,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#6C3CF4]/30 focus:border-[#6C3CF4] outline-none transition-shadow"
-                placeholder="admin@growcad.in"
+                placeholder="admin@meritinfi.com"
                 required
               />
             </div>
@@ -133,9 +133,9 @@ export default function LoginPage() {
           <div className="mt-8 p-3.5 rounded-lg bg-white border border-gray-200/80">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Demo Credentials</p>
             <div className="space-y-1.5 text-xs text-gray-500">
-              <p><span className="font-medium text-gray-700">Admin:</span> admin@growcad.in / admin123</p>
-              <p><span className="font-medium text-gray-700">Teacher:</span> teacher@growcad.in / teacher123</p>
-              <p><span className="font-medium text-gray-700">Student:</span> student@growcad.in / student123</p>
+              <p><span className="font-medium text-gray-700">Admin:</span> admin@meritinfi.com / admin123</p>
+              <p><span className="font-medium text-gray-700">Teacher:</span> teacher@meritinfi.com / teacher123</p>
+              <p><span className="font-medium text-gray-700">Student:</span> student@meritinfi.com / student123</p>
             </div>
           </div>
         </div>
