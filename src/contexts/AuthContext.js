@@ -8,13 +8,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('meritinfi_token');
+    const token = localStorage.getItem('growcad_token');
     if (token) {
       API.get('/auth/me')
         .then(res => setUser(res.data))
         .catch(() => {
-          localStorage.removeItem('meritinfi_token');
-          localStorage.removeItem('meritinfi_user');
+          localStorage.removeItem('growcad_token');
+          localStorage.removeItem('growcad_user');
         })
         .finally(() => setLoading(false));
     } else {
@@ -24,15 +24,15 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const res = await API.post('/auth/login', { email, password });
-    localStorage.setItem('meritinfi_token', res.data.token);
-    localStorage.setItem('meritinfi_user', JSON.stringify(res.data.user));
+    localStorage.setItem('growcad_token', res.data.token);
+    localStorage.setItem('growcad_user', JSON.stringify(res.data.user));
     setUser(res.data.user);
     return res.data;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('meritinfi_token');
-    localStorage.removeItem('meritinfi_user');
+    localStorage.removeItem('growcad_token');
+    localStorage.removeItem('growcad_user');
     setUser(null);
   }, []);
 

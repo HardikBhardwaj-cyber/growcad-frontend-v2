@@ -5,7 +5,7 @@ const API = axios.create({
 });
 
 API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('meritinfi_token');
+  const token = localStorage.getItem('growcad_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -16,8 +16,8 @@ API.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('meritinfi_token');
-      localStorage.removeItem('meritinfi_user');
+      localStorage.removeItem('growcad_token');
+      localStorage.removeItem('growcad_user');
       window.location.href = '/login';
     }
     return Promise.reject(err);

@@ -96,10 +96,10 @@ export default function DashboardLayout({ children }) {
         <div className="h-16 flex items-center px-5 border-b border-white/[0.06]">
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${roleColor} flex items-center justify-center`}>
-              <span className="text-white font-bold text-sm">M</span>
+              <span className="text-white font-bold text-sm">G</span>
             </div>
             <div>
-              <span className="text-[15px] font-bold text-white tracking-tight block leading-tight">Meritinfi</span>
+              <span className="text-[15px] font-bold text-white tracking-tight block leading-tight">Growcad</span>
               <span className="text-[9px] text-white/30 font-medium uppercase tracking-widest">{roleLabel}</span>
             </div>
           </div>

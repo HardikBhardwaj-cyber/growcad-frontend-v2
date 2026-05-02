@@ -35,9 +35,9 @@ export default function LoginPage() {
         <div className="relative z-10 max-w-lg px-12">
           <div className="flex items-center gap-3 mb-10">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#6C3CF4] to-[#a855f7] flex items-center justify-center shadow-lg shadow-[#6C3CF4]/30">
-              <span className="text-white font-bold text-xl">M</span>
+              <span className="text-white font-bold text-xl">G</span>
             </div>
-            <span className="text-2xl font-bold text-white tracking-tight">Meritinfi</span>
+            <span className="text-2xl font-bold text-white tracking-tight">Growcad</span>
           </div>
           <h1 className="text-4xl font-extrabold text-white leading-tight mb-4">
             The complete ERP<br />for coaching institutes
@@ -67,9 +67,9 @@ export default function LoginPage() {
         <div className="w-full max-w-[380px]">
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
             <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#6C3CF4] to-[#a855f7] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
+              <span className="text-white font-bold text-sm">G</span>
             </div>
-            <span className="text-lg font-bold text-[#1a1625]">Meritinfi</span>
+            <span className="text-lg font-bold text-[#1a1625]">Growcad</span>
           </div>
 
           <h2 className="text-2xl font-bold text-[#1a1625] mb-1">Welcome back</h2>
@@ -90,7 +90,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-[#6C3CF4]/30 focus:border-[#6C3CF4] outline-none transition-shadow"
-                placeholder="admin@meritinfi.com"
+                placeholder="admin@growcad.in"
                 required
               />
             </div>
@@ -133,9 +133,9 @@ export default function LoginPage() {
           <div className="mt-8 p-3.5 rounded-lg bg-white border border-gray-200/80">
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Demo Credentials</p>
             <div className="space-y-1.5 text-xs text-gray-500">
-              <p><span className="font-medium text-gray-700">Admin:</span> admin@meritinfi.com / admin123</p>
-              <p><span className="font-medium text-gray-700">Teacher:</span> teacher@meritinfi.com / teacher123</p>
-              <p><span className="font-medium text-gray-700">Student:</span> student@meritinfi.com / student123</p>
+              <p><span className="font-medium text-gray-700">Admin:</span> admin@growcad.in / admin123</p>
+              <p><span className="font-medium text-gray-700">Teacher:</span> teacher@growcad.in / teacher123</p>
+              <p><span className="font-medium text-gray-700">Student:</span> student@growcad.in / student123</p>
             </div>
           </div>
         </div>
