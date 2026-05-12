@@ -166,8 +166,15 @@ export default function SuperAdminDashboardPage() {
   }, [load]);
 
   const summary = data?.summary || {};
-  const pending = data?.pendingApprovals || [];
-  const institutes = data?.institutes || [];
+  const pending = useMemo(
+    () => data?.pendingApprovals || [],
+    [data]
+  );
+
+  const institutes = useMemo(
+    () => data?.institutes || [],
+    [data]
+  );
 
   const topUsage = useMemo(() => (
     [...institutes]
