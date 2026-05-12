@@ -28,6 +28,7 @@ const KEYS = {
 };
 
 const ROOT_DOMAIN = process.env.REACT_APP_ROOT_DOMAIN || 'growcad.in';
+const RESERVED_MAIN_SUBDOMAINS = new Set(['app', 'www']);
 
 // ─── Subdomain detection — exported so api/index.js can import it ─────────────
 /**
@@ -52,6 +53,7 @@ export function detectSubdomain() {
   if (host === ROOT_DOMAIN || host === `www.${ROOT_DOMAIN}`) return null;
   if (host.endsWith(`.${ROOT_DOMAIN}`)) {
     const slug = host.slice(0, host.length - ROOT_DOMAIN.length - 1);
+    if (RESERVED_MAIN_SUBDOMAINS.has(slug)) return null;
     return slug || null;
   }
   return null;

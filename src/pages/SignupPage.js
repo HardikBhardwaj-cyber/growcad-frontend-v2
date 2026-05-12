@@ -99,7 +99,7 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      // Register pending admin + trigger both OTPs
+      // Register pending admin + trigger email OTP
       await API.post('/auth/admin-signup', {
         name:     form.name.trim(),
         mobile,
@@ -210,7 +210,7 @@ export default function SignupPage() {
                 onMouseEnter={e => { if (!loading) e.currentTarget.style.boxShadow='0 6px 28px rgba(108,60,244,.65)'; }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow='0 4px 20px rgba(108,60,244,.45)'; }}>
                 {loading
-                  ? <><div className="w-4 h-4 rounded-full animate-spin" style={{ border:'2px solid rgba(255,255,255,.25)',borderTopColor:'#fff' }} /> Sending OTPs…</>
+                  ? <><div className="w-4 h-4 rounded-full animate-spin" style={{ border:'2px solid rgba(255,255,255,.25)',borderTopColor:'#fff' }} /> Sending email OTP...</>
                   : <>Continue <ArrowRight size={15} /></>}
               </button>
             </form>

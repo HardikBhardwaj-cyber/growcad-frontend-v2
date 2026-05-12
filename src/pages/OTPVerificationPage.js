@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Smartphone, Mail, Check, RefreshCw } from 'lucide-react';
+import { Mail, Check, RefreshCw } from 'lucide-react';
 import { StepBar } from './SignupPage';
 import API from '@/api';
 
@@ -180,7 +180,6 @@ export default function OTPVerificationPage() {
   const { state } = useLocation();
   const { mobile, email } = state || {};
 
-  const [mobileVerified, setMobileVerified] = useState(false);
   const [emailVerified,  setEmailVerified]  = useState(false);
   const [loading,        setLoading]        = useState(false);
   const [error,          setError]          = useState('');
@@ -191,8 +190,8 @@ export default function OTPVerificationPage() {
   }, [mobile, email, navigate]);
 
   const handleContinue = () => {
-    if (!mobileVerified || !emailVerified) {
-      setError('Please verify both your mobile and email before continuing.');
+    if (!emailVerified) {
+      setError('Please verify your email before continuing.');
       return;
     }
     navigate('/onboarding', { state: { mobile, email } });
@@ -224,7 +223,7 @@ export default function OTPVerificationPage() {
         }}>
           <h2 className="text-[1.45rem] font-bold text-white tracking-tight mb-1">Verify your identity</h2>
           <p className="text-xs mb-6" style={{ color:'rgba(255,255,255,.40)' }}>
-            Enter the 6-digit codes sent to your mobile and email
+            Enter the 6-digit code sent to your email
           </p>
 
           {error && (
@@ -236,18 +235,13 @@ export default function OTPVerificationPage() {
 
           <div className="space-y-3">
             <VerifyBlock
-              channel="mobile" target={mobile} label="Mobile" Icon={Smartphone}
-              verified={mobileVerified} onVerified={() => setMobileVerified(true)}
-              globalLoading={loading} setGlobalLoading={setLoading} setGlobalError={setError}
-            />
-            <VerifyBlock
               channel="email" target={email} label="Email" Icon={Mail}
               verified={emailVerified} onVerified={() => setEmailVerified(true)}
               globalLoading={loading} setGlobalLoading={setLoading} setGlobalError={setError}
             />
           </div>
 
-          <button onClick={handleContinue} disabled={!mobileVerified || !emailVerified}
+          <button onClick={handleContinue} disabled={!emailVerified}
             className="mt-5 w-full py-3 rounded-[12px] text-sm font-bold text-white flex items-center justify-center gap-2 transition-all active:scale-[0.97] disabled:opacity-40"
             style={{ background:'linear-gradient(135deg,#6C3CF4,#8b5cf6,#a855f7)', boxShadow:'0 4px 20px rgba(108,60,244,.42)' }}>
             Continue to Onboarding →
