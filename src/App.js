@@ -21,6 +21,7 @@ import OnboardingPage       from '@/pages/OnboardingPage';
 import PlanSelectionPage    from '@/pages/PlanSelectionPage';
 import PaymentSuccessPage   from '@/pages/PaymentSuccessPage';
 import PendingApprovalPage  from '@/pages/PendingApprovalPage';
+import SuperAdminDashboardPage from '@/pages/SuperAdminDashboardPage';
 
 import DashboardPage        from '@/pages/DashboardPage';
 import StudentsPage         from '@/pages/StudentsPage';
@@ -104,7 +105,8 @@ function AppRoutes() {
       <Route path="/pending-approval" element={<OnboardingRoute><PendingApprovalPage /></OnboardingRoute>} />
 
       {/* ── Authenticated — all roles ─────────────────────────────────────── */}
-      <Route path="/dashboard"     element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/dashboard"     element={<ProtectedRoute>{user?.role === 'superadmin' ? <SuperAdminDashboardPage /> : <DashboardPage />}</ProtectedRoute>} />
+      <Route path="/super-admin"   element={<ProtectedRoute allowedRoles={['superadmin']}><SuperAdminDashboardPage /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
       <Route path="/announcements" element={<ProtectedRoute><AnnouncementsPage /></ProtectedRoute>} />
       <Route path="/live-classes"  element={<ProtectedRoute><LiveClassesPage /></ProtectedRoute>} />

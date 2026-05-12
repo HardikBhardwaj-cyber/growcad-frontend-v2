@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Check, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Mail, Check, RefreshCw } from 'lucide-react';
 import { StepBar } from './SignupPage';
 import API from '@/api';
 
@@ -50,7 +50,7 @@ function OTPInput({ value, onChange, disabled }) {
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="grid grid-cols-6 gap-2 w-full">
       {digits.map((d, i) => (
         <input
           key={i}
@@ -63,7 +63,7 @@ function OTPInput({ value, onChange, disabled }) {
           onPaste={handlePaste}
           onChange={() => {}} // controlled via onKeyDown
           disabled={disabled}
-          className="flex-1 h-12 text-center text-lg font-bold rounded-xl outline-none transition-all duration-200 disabled:opacity-40"
+          className="w-full min-w-0 h-11 text-center text-lg font-bold rounded-xl outline-none transition-all duration-200 disabled:opacity-40"
           style={{
             background:   'rgba(255,255,255,0.07)',
             border:       d.trim()
@@ -145,10 +145,14 @@ function VerifyBlock({ channel, target, label, Icon, verified, onVerified, globa
           </span>
         ) : (
           <button onClick={resend} disabled={cDown > 0}
-            className="text-[10px] font-semibold flex items-center gap-1 transition-colors"
-            style={{ color: cDown > 0 ? 'rgba(255,255,255,.22)' : '#a78bfa' }}>
+            className="text-[10px] font-bold flex items-center gap-1 px-2 py-1 rounded-full transition-all disabled:cursor-not-allowed"
+            style={{
+              color: cDown > 0 ? 'rgba(255,255,255,.30)' : '#c4b5fd',
+              background: cDown > 0 ? 'rgba(255,255,255,.04)' : 'rgba(108,60,244,.18)',
+              border: cDown > 0 ? '1px solid rgba(255,255,255,.06)' : '1px solid rgba(167,139,250,.28)',
+            }}>
             <RefreshCw size={10} />
-            {cDown > 0 ? `Resend in ${cDown}s` : 'Resend'}
+            {cDown > 0 ? `${cDown}s` : 'Resend code'}
           </button>
         )}
       </div>
@@ -215,6 +219,15 @@ export default function OTPVerificationPage() {
         </div>
 
         <StepBar current={1} />
+
+        <button
+          type="button"
+          onClick={() => navigate('/signup')}
+          className="mb-3 inline-flex items-center gap-2 text-[11px] font-bold rounded-full px-3 py-2 transition-all"
+          style={{ color:'#c4b5fd', background:'rgba(108,60,244,.12)', border:'1px solid rgba(167,139,250,.20)' }}
+        >
+          <ArrowLeft size={13} /> Back to account
+        </button>
 
         <div style={{
           background:'rgba(255,255,255,0.075)', backdropFilter:'blur(26px)',

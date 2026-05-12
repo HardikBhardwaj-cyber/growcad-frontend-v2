@@ -77,33 +77,41 @@ function AddonCard({ addon, selected, onToggle, yearly }) {
       onClick={onToggle}
       className="p-4 rounded-2xl cursor-pointer transition-all duration-200 select-none"
       style={{
-        background: selected ? 'rgba(108,60,244,0.14)' : 'rgba(255,255,255,0.04)',
-        border:     selected ? '1.5px solid rgba(108,60,244,0.50)' : '1px solid rgba(255,255,255,0.08)',
-        boxShadow:  selected ? '0 0 20px rgba(108,60,244,0.15)' : 'none',
+        background: selected ? 'linear-gradient(145deg,rgba(108,60,244,0.30),rgba(59,130,246,0.10))' : 'rgba(255,255,255,0.075)',
+        border:     selected ? '1.5px solid rgba(196,181,253,0.72)' : '1px solid rgba(255,255,255,0.16)',
+        boxShadow:  selected ? '0 0 24px rgba(108,60,244,0.24)' : '0 1px 0 rgba(255,255,255,.05) inset',
       }}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-[12.5px] font-semibold text-white/88 truncate">{addon.label}</p>
-          <p className="text-[10px] text-white/38 mt-0.5 leading-relaxed">{addon.desc}</p>
+          <p className="text-[13px] font-bold truncate" style={{ color: '#fff' }}>{addon.label}</p>
+          <p className="text-[10.5px] mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,.58)' }}>{addon.desc}</p>
         </div>
         <div className="shrink-0 flex flex-col items-end gap-1.5">
-          <p className="text-[12px] font-bold" style={{ color: selected ? '#a78bfa' : 'rgba(255,255,255,0.55)' }}>
-            {fmt(price)}
-            <span className="text-[9px] font-medium">
-              {addon.id === 'personal_domain' ? (yearly ? '/yr' : '/mo*') : '/mo'}
-            </span>
-          </p>
           <div
-            className="w-5 h-5 rounded-full flex items-center justify-center transition-all"
+            className="px-2 py-1 rounded-full"
+            style={{ background: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.12)' }}
+          >
+            <p className="text-[12px] font-bold" style={{ color: selected ? '#ddd6fe' : 'rgba(255,255,255,0.82)' }}>
+              {fmt(price)}
+              <span className="text-[9px] font-medium" style={{ color: 'rgba(255,255,255,.50)' }}>
+                {addon.id === 'personal_domain' ? (yearly ? '/yr' : '/mo*') : '/mo'}
+              </span>
+            </p>
+          </div>
+          <div
+            className="h-6 rounded-full flex items-center justify-center gap-1.5 px-2 transition-all"
             style={{
               background: selected ? '#6C3CF4' : 'rgba(255,255,255,0.08)',
-              border:     selected ? 'none'    : '1px solid rgba(255,255,255,0.15)',
+              border:     selected ? 'none'    : '1px solid rgba(255,255,255,0.18)',
             }}
           >
             {selected
               ? <Check size={11} className="text-white" />
               : <Plus  size={10} className="text-white/40" />}
+            <span className="text-[9px] font-bold" style={{ color: selected ? '#fff' : 'rgba(255,255,255,.55)' }}>
+              {selected ? 'Added' : 'Add'}
+            </span>
           </div>
         </div>
       </div>
@@ -398,7 +406,12 @@ export default function PlanSelectionPage() {
           </div>
 
           {/* Add-ons */}
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Add-ons (optional)</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/45">Add-ons (optional)</p>
+            <span className="text-[10px] font-bold rounded-full px-2 py-1" style={{ color: '#c4b5fd', background: 'rgba(108,60,244,.16)' }}>
+              {addons.size} selected
+            </span>
+          </div>
           <div className="space-y-2 mb-5">
             {ADDONS.map((addon) => (
               <AddonCard

@@ -1,231 +1,350 @@
-/* ──────────────────────────────────────────────────────────────
-   Growcad ERP - Global Styles (Premium System)
-────────────────────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   Growcad ERP — Global Stylesheet
+   Design system: dark glass SaaS · primary #6C3CF4
+   ══════════════════════════════════════════════════════════════ */
 
-/* 🔥 Global smooth motion */
-* {
-  transition: all 0.2s ease-out;
+/* ─── Font rendering ─────────────────────────────────────────── */
+html {
+  text-rendering:         optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "kern" 1, "liga" 1;
 }
 
-/* 🔥 GPU optimization */
+/* ─── Body baseline ──────────────────────────────────────────── */
+body {
+  background: #0e0c17;
+  color: rgba(255, 255, 255, 0.88);
+  min-height: 100vh;
+}
+
+/* ─── CRITICAL: remove aggressive global transition ─────────────
+   The original `* { transition: all 0.2s }` caused input lag,
+   scroll jitter, and fought against Recharts/Radix animations.
+   We scope transitions explicitly per component instead.
+────────────────────────────────────────────────────────────────── */
+
+/* ─── GPU compositing for known animated elements ───────────────*/
 .gpu {
   will-change: transform, opacity;
   transform: translateZ(0);
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Basic Animations
-────────────────────────────────────────────────────────────── */
+/* ─── Keyframes ──────────────────────────────────────────────── */
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(-12px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-.animate-slide-in {
-  animation: slideIn 0.25s ease-out forwards;
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0);     }
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Pulse / Glow
-────────────────────────────────────────────────────────────── */
-
-@keyframes pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0.4); }
-  70%  { box-shadow: 0 0 0 6px rgba(108, 60, 244, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0); }
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1);    }
 }
-.pulse-ring {
-  animation: pulse-ring 1.5s infinite;
-}
-
-/* Glow utilities */
-.glow-violet {
-  box-shadow:
-    0 0 20px rgba(108,60,244,0.25),
-    0 0 40px rgba(108,60,244,0.15);
-}
-
-.glow-emerald {
-  box-shadow:
-    0 0 20px rgba(16,185,129,0.25),
-    0 0 40px rgba(16,185,129,0.15);
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Background Motion
-────────────────────────────────────────────────────────────── */
-
-@keyframes bgMove {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-.animate-bg {
-  background-size: 200% 200%;
-  animation: bgMove 18s ease infinite;
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Floating Animations
-────────────────────────────────────────────────────────────── */
-
-@keyframes floatY {
-  0%   { transform: translateY(0px); }
-  50%  { transform: translateY(-14px); }
-  100% { transform: translateY(0px); }
-}
-.animate-float {
-  animation: floatY 7s ease-in-out infinite;
-}
-
-/* Softer variation */
-@keyframes floatSoft {
-  0%   { transform: translateY(0px); }
-  50%  { transform: translateY(-8px); }
-  100% { transform: translateY(0px); }
-}
-.animate-float-soft {
-  animation: floatSoft 6s ease-in-out infinite;
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Particles
-────────────────────────────────────────────────────────────── */
 
 @keyframes particleRise {
-  0% {
-    transform: translateY(0) scale(1);
-    opacity: 0.4;
-  }
-  100% {
-    transform: translateY(-120px) scale(0.3);
-    opacity: 0;
-  }
+  0%   { transform: translateY(0) scale(1); opacity: 0.4; }
+  100% { transform: translateY(-100px) scale(0); opacity: 0; }
 }
+
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(40px, -30px) scale(1.08); }
+}
+
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(-32px, 40px) scale(1.05); }
+}
+
+@keyframes pulseRing {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0.40); }
+  50%       { box-shadow: 0 0 0 7px rgba(108, 60, 244, 0); }
+}
+
+/* ─── Animation utility classes ──────────────────────────────── */
+
+.animate-fade-in   { animation: fadeIn   0.4s ease-out both; }
+.animate-fade-up   { animation: fadeUp   0.4s ease-out both; }
+.animate-slide-in  { animation: slideIn  0.25s ease-out both; }
+.animate-scale-in  { animation: scaleIn  0.3s ease-out both; }
+
+/* Staggered entry helpers */
+.anim-delay-1 { animation-delay: 0.05s; }
+.anim-delay-2 { animation-delay: 0.10s; }
+.anim-delay-3 { animation-delay: 0.18s; }
+.anim-delay-4 { animation-delay: 0.26s; }
+.anim-delay-5 { animation-delay: 0.34s; }
+.anim-delay-6 { animation-delay: 0.42s; }
 
 .particle {
-  animation: particleRise 6s linear infinite;
+  position: absolute;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: rgba(167, 139, 250, 0.35);
+  animation: particleRise linear infinite;
+  pointer-events: none;
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Glass System (Premium)
-────────────────────────────────────────────────────────────── */
+/* ─── Glass card system ──────────────────────────────────────── */
 
 .glass {
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-
-  background: linear-gradient(
-    180deg,
-    rgba(255,255,255,0.08),
-    rgba(255,255,255,0.03)
-  );
-
-  border: 1px solid rgba(255,255,255,0.12);
-
+  background: linear-gradient(160deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   box-shadow:
-    0 10px 40px rgba(0,0,0,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 0 60px rgba(108,60,244,0.08);
+    0 4px 24px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Hover + Interaction
-────────────────────────────────────────────────────────────── */
-
-.hover-lift {
-  transition: all 0.25s ease;
+.glass-hover {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+}
+.glass-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09);
 }
 
-.hover-lift:hover {
-  transform: translateY(-2px);
+/* ─── Dark glass input (used across StudentsPage, dialogs) ───── */
+
+.glass-input {
+  background:   rgba(255, 255, 255, 0.06) !important;
+  border:       1px solid rgba(255, 255, 255, 0.10) !important;
+  color:        rgba(255, 255, 255, 0.88) !important;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.30) !important;
+}
+.glass-input:hover {
+  border-color: rgba(255, 255, 255, 0.18) !important;
+}
+.glass-input:focus,
+.glass-input:focus-visible {
+  border-color: rgba(108, 60, 244, 0.65) !important;
+  box-shadow: 0 0 0 3px rgba(108, 60, 244, 0.16) !important;
+  outline: none !important;
 }
 
-/* Buttons */
-.btn-glow {
-  transition: all 0.25s ease;
-}
+/* ─── Button styles ──────────────────────────────────────────── */
 
-.btn-glow:hover {
+.btn-primary {
+  background: linear-gradient(135deg, #6C3CF4, #8b5cf6, #a855f7);
+  box-shadow: 0 3px 14px rgba(108, 60, 244, 0.38);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(108, 60, 244, 0.55);
+}
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.72);
+  border-radius: 10px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.90);
+}
+
+/* ─── Glow variants ──────────────────────────────────────────── */
+
+.glow-violet {
+  box-shadow: 0 0 20px rgba(108, 60, 244, 0.22), 0 0 40px rgba(108, 60, 244, 0.10);
+}
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.22), 0 0 40px rgba(16, 185, 129, 0.10);
+}
+.glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.22), 0 0 40px rgba(245, 158, 11, 0.10);
+}
+
+.pulse-ring {
+  animation: pulseRing 1.6s ease-out infinite;
+}
+
+/* ─── Orb backgrounds ────────────────────────────────────────── */
+
+.orb-1 { animation: orbFloat1 13s ease-in-out infinite; }
+.orb-2 { animation: orbFloat2 16s ease-in-out infinite; }
+
+/* ─── Table base (dark) ──────────────────────────────────────── */
+
+.dark-table th {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: rgba(255, 255, 255, 0.40);
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+.dark-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.80);
+}
+.dark-table tbody tr {
+  transition: background 0.12s ease;
+}
+.dark-table tbody tr:hover {
+  background: rgba(108, 60, 244, 0.06);
+}
+.dark-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ─── Badge utilities ────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.badge-violet {
+  background: rgba(108, 60, 244, 0.16);
+  color: #c4b5fd;
+  border: 1px solid rgba(108, 60, 244, 0.28);
+}
+.badge-emerald {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.26);
+}
+.badge-amber {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.26);
+}
+.badge-red {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.26);
+}
+.badge-blue {
+  background: rgba(59, 130, 246, 0.14);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.26);
+}
+
+/* ─── Dashboard card (gc-card) ───────────────────────────────── */
+
+.gc-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   box-shadow:
-    0 8px 25px rgba(108,60,244,0.35),
-    0 0 40px rgba(108,60,244,0.25);
+    0 4px 24px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+}
+.gc-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 12px 44px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 0 60px rgba(108, 60, 244, 0.09);
+  border-color: rgba(255, 255, 255, 0.13);
 }
 
-.btn-glow:active {
-  transform: scale(0.96);
+/* ─── Gradient button (used in dashboard quick actions) ──────── */
+
+.gc-btn-grad {
+  background: linear-gradient(135deg, #6C3CF4, #8b5cf6, #a855f7);
+  box-shadow: 0 3px 12px rgba(108, 60, 244, 0.38);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.gc-btn-grad:hover:not(:disabled) {
+  box-shadow: 0 5px 20px rgba(108, 60, 244, 0.55);
+  transform: translateY(-1px) scale(1.02);
+}
+.gc-btn-grad:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
-/* ──────────────────────────────────────────────────────────────
-   Section Entry Animation
-────────────────────────────────────────────────────────────── */
+/* ─── Cursor glow (desktop only) ─────────────────────────────── */
 
-@keyframes fadeScale {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+.gc-cursor-glow {
+  position: fixed;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle, rgba(108,60,244,0.07) 0%, transparent 70%);
+  transform: translate(-50%, -50%);
+  transition: left 0.1s ease-out, top 0.1s ease-out;
+  mix-blend-mode: screen;
 }
 
-.animate-fade-scale {
-  animation: fadeScale 0.4s ease-out;
+/* ─── Orb animation classes (DashboardPage) ──────────────────── */
+.gc-orb1 { animation: orbFloat1 12s ease-in-out infinite; }
+.gc-orb2 { animation: orbFloat2 15s ease-in-out infinite; }
+.gc-orb3 { animation: orbFloat1  9s ease-in-out infinite reverse; }
+
+/* ─── Stagger entry (DashboardPage) ─────────────────────────── */
+@keyframes gc-fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0);    }
 }
+.gc-anim-1 { animation: gc-fadeUp 0.45s ease-out 0.04s both; }
+.gc-anim-2 { animation: gc-fadeUp 0.45s ease-out 0.10s both; }
+.gc-anim-3 { animation: gc-fadeUp 0.45s ease-out 0.17s both; }
+.gc-anim-4 { animation: gc-fadeUp 0.45s ease-out 0.24s both; }
+.gc-anim-5 { animation: gc-fadeUp 0.45s ease-out 0.31s both; }
+.gc-anim-6 { animation: gc-fadeUp 0.45s ease-out 0.38s both; }
 
-/* ──────────────────────────────────────────────────────────────
-   Scrollbar (Premium)
-────────────────────────────────────────────────────────────── */
-
-.scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
+/* ─── Metric icon pulse ──────────────────────────────────────── */
+@keyframes gc-pulseRing {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0.42); }
+  50%       { box-shadow: 0 0 0 8px rgba(108, 60, 244, 0); }
 }
+.gc-metric-icon:hover { animation: gc-pulseRing 0.9s ease-out 1; }
 
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(255,255,255,0.25),
-    rgba(255,255,255,0.08)
-  );
-  border-radius: 2px;
-}
-
-/* ──────────────────────────────────────────────────────────────
-   Accessibility (VERY IMPORTANT)
-────────────────────────────────────────────────────────────── */
-
+/* ─── Accessibility ──────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
+  *, *::before, *::after {
+    animation-duration:   0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration:  0.01ms !important;
   }
 }
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(
-    180deg,
-    rgba(108,60,244,0.35),
-    rgba(108,60,244,0.12)
-  );
-}
-
-
-nav {
-  scroll-behavior: smooth;
-}
-

@@ -14,7 +14,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Check, X, Loader2, Building2 } from 'lucide-react';
+import { Check, X, Loader2, Building2, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { StepBar } from './SignupPage';
@@ -23,11 +23,11 @@ import API from '@/api';
 
 // ─── Strength options ─────────────────────────────────────────────────────────
 const STRENGTHS = [
-  { value: '0-150',    label: '0 – 150 students'               },
-  { value: '150-250',  label: '150 – 250 students'             },
-  { value: '250-500',  label: '250 – 500 students'             },
-  { value: '500-750',  label: '500 – 750 students'             },
-  { value: '750-1000', label: '750 – 1000 students'            },
+  { value: '0-150',    label: '0 - 150 students'               },
+  { value: '150-250',  label: '150 - 250 students'             },
+  { value: '250-500',  label: '250 - 500 students'             },
+  { value: '500-750',  label: '500 - 750 students'             },
+  { value: '750-1000', label: '750 - 1000 students'            },
   { value: '1000+',    label: '1000+ students (Contact Sales)' },
 ];
 
@@ -253,22 +253,45 @@ export default function OnboardingPage() {
             </div>
 
             {/* Strength */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,.38)' }}>
                 Total Student Strength
               </Label>
-              <select
-                value={form.totalStrength}
-                onChange={(e) => setForm((p) => ({ ...p, totalStrength: e.target.value }))}
-                className="w-full h-10 rounded-[10px] px-3 text-sm outline-none transition-all duration-200"
-                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.88)', appearance: 'none' }}
-              >
-                {STRENGTHS.map((s) => (
-                  <option key={s.value} value={s.value} style={{ background: '#1a1625', color: '#fff' }}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {STRENGTHS.map((s) => {
+                  const active = form.totalStrength === s.value;
+                  return (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, totalStrength: s.value }))}
+                      className="text-left rounded-[12px] px-3 py-3 transition-all active:scale-[0.98]"
+                      style={{
+                        background: active ? 'rgba(108,60,244,.20)' : 'rgba(255,255,255,.055)',
+                        border: active ? '1.5px solid rgba(167,139,250,.58)' : '1px solid rgba(255,255,255,.10)',
+                        boxShadow: active ? '0 0 18px rgba(108,60,244,.18)' : '0 1px 0 rgba(255,255,255,.04) inset',
+                      }}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <Users
+                            size={13}
+                            className="shrink-0"
+                            style={{ color: active ? '#c4b5fd' : 'rgba(255,255,255,.35)' }}
+                          />
+                          <span
+                            className="text-[11.5px] font-bold leading-snug"
+                            style={{ color: active ? '#fff' : 'rgba(255,255,255,.68)' }}
+                          >
+                            {s.label}
+                          </span>
+                        </span>
+                        {active && <Check size={13} className="text-emerald-400 shrink-0" />}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <button
