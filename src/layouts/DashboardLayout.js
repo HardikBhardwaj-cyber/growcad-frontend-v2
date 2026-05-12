@@ -75,20 +75,20 @@ function NavLink({ item, onNavigate }) {
       data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
       onClick={onNavigate}
       style={active ? {
-        background:   'linear-gradient(135deg, rgba(108,60,244,0.22), rgba(168,85,247,0.14))',
-        boxShadow:    '0 2px 10px rgba(108,60,244,0.18)',
-        borderLeft:   '2.5px solid #7c4ff5',
-        paddingLeft:  '13.5px',
-        color:        '#fff',
-        transition:   'all 0.2s ease-out',
+        background:  'linear-gradient(135deg, rgba(108,60,244,0.24), rgba(168,85,247,0.16))',
+        boxShadow:   '0 2px 12px rgba(108,60,244,0.20), 0 0 20px rgba(108,60,244,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+        borderLeft:  '2.5px solid #7c4ff5',
+        paddingLeft: '13.5px',
+        color:       '#fff',
+        transform:   'scale(1.01)',
       } : { borderLeft: '2.5px solid transparent' }}
       className={[
         'flex items-center gap-3 pr-3 py-2.5 rounded-r-[10px] mb-[2px]',
         'text-[13px] font-medium select-none',
-        'transition-all duration-200 ease-out',
+        'transition-all duration-200 ease-out active:scale-[0.96]',
         active
           ? ''
-          : 'pl-3.5 text-white/45 hover:text-white/85 hover:bg-white/[0.055] hover:translate-x-[2px]',
+          : 'pl-3.5 text-white/45 hover:text-white/88 hover:bg-white/[0.06] hover:translate-x-[2px] hover:shadow-[0_0_12px_rgba(255,255,255,0.05)] hover:border-l-[2.5px] hover:border-[#7c4ff5]',
       ].join(' ')}
     >
       <item.icon
@@ -130,14 +130,37 @@ export default function DashboardLayout({ children }) {
 
       {/* ── Sidebar ──────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-[252px] transform transition-transform duration-300 ease-out lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-        style={{
-          background:     'rgba(18,15,30,0.96)',
-          backdropFilter: 'blur(24px)',
-          borderRight:    '1px solid rgba(255,255,255,0.07)',
-          boxShadow:      '6px 0 40px rgba(0,0,0,0.45), inset -1px 0 0 rgba(255,255,255,0.04)',
-        }}
-      >
+  className={`fixed inset-y-0 left-0 z-50 flex flex-col w-[252px] transform transition-transform duration-300 ease-out lg:relative lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+  style={{
+    background: `
+      linear-gradient(180deg, rgba(18,15,30,0.97) 0%, rgba(16,13,26,0.94) 60%, rgba(14,11,22,0.92) 100%),
+      radial-gradient(circle at 20% 0%, rgba(108,60,244,0.06), transparent 60%)
+    `,
+    backdropFilter: 'blur(28px)',
+    WebkitBackdropFilter: 'blur(28px)',
+    borderRight: '1px solid rgba(255,255,255,0.07)',
+    boxShadow:
+      '6px 0 48px rgba(0,0,0,0.50), inset -1px 0 0 rgba(255,255,255,0.04), inset 0 0 40px rgba(108,60,244,0.05)',
+  }}
+>
+
+  {/* 🔥 Glow layer (background only) */}
+  <div
+    className="absolute inset-0 pointer-events-none z-0"
+    style={{
+      background:
+        'radial-gradient(circle at 20% 10%, rgba(108,60,244,0.08), transparent 60%)',
+    }}
+  />
+
+  {/* ✅ ALL CONTENT WRAPPED HERE */}
+  <div className="relative z-10 flex flex-col h-full">
+
+    {/* Brand, nav, everything goes inside */}
+
+    
+
+ 
         {/* Brand */}
         <div
           className="h-[62px] flex items-center px-5 shrink-0"
@@ -145,8 +168,11 @@ export default function DashboardLayout({ children }) {
         >
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
-              className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0"
-              style={{ background: meta.gradient, boxShadow: `0 4px 16px ${meta.glow}` }}
+              className="w-9 h-9 rounded-[10px] flex items-center justify-center shrink-0 transition-all duration-200 active:scale-[0.95]"
+              style={{
+                background: meta.gradient,
+                boxShadow:  `0 4px 16px ${meta.glow}, 0 0 24px ${meta.glow.replace('0.50','0.22').replace('0.45','0.20')}`,
+              }}
             >
               <span className="text-white font-bold text-[15px]">G</span>
             </div>
@@ -158,7 +184,10 @@ export default function DashboardLayout({ children }) {
             </div>
           </div>
           <button
-            className="lg:hidden w-7 h-7 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/8 transition-all duration-150 shrink-0"
+            className="lg:hidden w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-150 active:scale-[0.93]"
+            style={{ color: 'rgba(255,255,255,0.40)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.40)'; }}
             onClick={() => setSidebarOpen(false)}
           >
             <X size={16} />
@@ -172,14 +201,22 @@ export default function DashboardLayout({ children }) {
         </p>
 
         {/* Primary nav */}
-        <nav
-          className="flex-1 pl-2.5 pr-2 overflow-y-auto"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.08) transparent' }}
-        >
-          {navItems.map(item => (
-            <NavLink key={item.path} item={item} onNavigate={() => setSidebarOpen(false)} />
-          ))}
-        </nav>
+        {/* Primary nav */}
+    <nav
+      className="flex-1 pl-2.5 pr-2 overflow-y-auto"
+      style={{
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'rgba(108,60,244,0.18) transparent'
+      }}
+    >
+      {navItems.map(item => (
+        <NavLink
+          key={item.path}
+          item={item}
+          onNavigate={() => setSidebarOpen(false)}
+        />
+      ))}
+    </nav>
 
         {/* Bottom utilities */}
         <div className="px-2.5 pb-4 shrink-0">
@@ -191,14 +228,26 @@ export default function DashboardLayout({ children }) {
               <NavLink key={item.path} item={item} onNavigate={() => setSidebarOpen(false)} />
             ))}
           </div>
+          </div>
+           
 
+
+          {/* Logout */}
           <button
             onClick={logout}
             data-testid="nav-logout"
-            className="flex items-center gap-3 pl-3.5 pr-3 py-2.5 rounded-[10px] text-[13px] font-medium w-full transition-all duration-200"
+            className="flex items-center gap-3 pl-3.5 pr-3 py-2.5 rounded-[10px] text-[13px] font-medium w-full transition-all duration-200 active:scale-[0.96]"
             style={{ color: 'rgba(255,255,255,0.38)', borderLeft: '2.5px solid transparent' }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.09)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.38)'; e.currentTarget.style.background = 'transparent'; }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color      = '#f87171';
+              e.currentTarget.style.background = 'rgba(239,68,68,0.09)';
+              e.currentTarget.style.boxShadow  = '0 0 16px rgba(239,68,68,0.08)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color      = 'rgba(255,255,255,0.38)';
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.boxShadow  = 'none';
+            }}
           >
             <LogOut size={17} strokeWidth={1.7} />
             Logout
@@ -206,8 +255,20 @@ export default function DashboardLayout({ children }) {
 
           {/* User card */}
           <div
-            className="flex items-center gap-3 px-3 py-3 mt-2 rounded-[12px]"
+            className="flex items-center gap-3 px-3 py-3 mt-2 rounded-[12px] cursor-default transition-all duration-200"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.transform   = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow   = '0 6px 20px rgba(108,60,244,0.15), 0 0 0 1px rgba(108,60,244,0.12)';
+              e.currentTarget.style.borderColor = 'rgba(108,60,244,0.22)';
+              e.currentTarget.style.background  = 'rgba(108,60,244,0.06)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.transform   = 'translateY(0)';
+              e.currentTarget.style.boxShadow   = 'none';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)';
+              e.currentTarget.style.background  = 'rgba(255,255,255,0.04)';
+            }}
           >
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
@@ -230,13 +291,21 @@ export default function DashboardLayout({ children }) {
         <header
           className="h-[54px] flex items-center justify-between px-4 lg:px-6 sticky top-0 z-30 shrink-0"
           style={{
-            background:     'rgba(18,15,30,0.88)',
-            backdropFilter: 'blur(18px)',
-            borderBottom:   '1px solid rgba(255,255,255,0.07)',
+            background:          'rgba(18,15,30,0.90)',
+            backdropFilter:      'blur(20px)',
+            WebkitBackdropFilter:'blur(20px)',
+            borderBottom:        '1px solid rgba(255,255,255,0.07)',
+            boxShadow:           `
+  0 1px 0 rgba(255,255,255,0.04),
+  0 4px 24px rgba(0,0,0,0.24),
+  0 0 40px rgba(108,60,244,0.04),
+  inset 0 -1px 0 rgba(255,255,255,0.03)
+`,
           }}
         >
+          {/* Mobile menu button */}
           <button
-            className="lg:hidden w-8 h-8 flex items-center justify-center rounded-[9px] transition-all duration-150"
+            className="lg:hidden w-8 h-8 flex items-center justify-center rounded-[9px] transition-all duration-150 active:scale-[0.93]"
             style={{ color: 'rgba(255,255,255,0.50)' }}
             data-testid="mobile-menu-button"
             onClick={() => setSidebarOpen(true)}
@@ -246,6 +315,7 @@ export default function DashboardLayout({ children }) {
             <Menu size={18} />
           </button>
 
+          {/* Page title */}
           <div className="hidden lg:flex items-center">
             <h2
               className="capitalize"
@@ -255,25 +325,38 @@ export default function DashboardLayout({ children }) {
             </h2>
           </div>
 
+          {/* Right controls */}
           <div className="flex items-center gap-1 ml-auto">
+            {/* Notification bell */}
             <Link
               to="/notifications"
               data-testid="header-notifications"
-              className="w-8 h-8 flex items-center justify-center rounded-[9px] transition-all duration-150"
+              className="w-8 h-8 flex items-center justify-center rounded-[9px] transition-all duration-150 active:scale-[0.93]"
               style={{ color: 'rgba(255,255,255,0.45)' }}
-              onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; e.currentTarget.style.background = 'transparent'; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.color      = '#fff';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                e.currentTarget.style.boxShadow  = `
+  0 0 14px rgba(108,60,244,0.25),
+  0 0 30px rgba(108,60,244,0.12)
+`;}}
+              onMouseLeave={e => {
+                e.currentTarget.style.color      = 'rgba(255,255,255,0.45)';
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.boxShadow  = 'none';
+              }}
             >
               <Bell size={17} />
             </Link>
 
+            {/* User chip */}
             <div
               className="flex items-center gap-2.5 pl-3 ml-1.5"
               style={{ borderLeft: '1px solid rgba(255,255,255,0.08)' }}
             >
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-                style={{ background: meta.gradient }}
+                style={{ background: meta.gradient, boxShadow: `0 2px 8px ${meta.glow.replace('0.50','0.38').replace('0.45','0.35')}` }}
               >
                 {initials}
               </div>
@@ -287,12 +370,41 @@ export default function DashboardLayout({ children }) {
 
         {/* Page content */}
         <div
-          className="flex-1 overflow-y-auto"
-          style={{ background: '#0e0c17', scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.09) transparent' }}
+          className="flex-1 overflow-y-auto relative"
+          style={{
+            background: `
+  linear-gradient(180deg, rgba(108,60,244,0.05), transparent 30%),
+  linear-gradient(0deg, rgba(168,85,247,0.04), transparent 40%),
+  #0e0c17
+`,
+            scrollbarWidth:'thin',
+            scrollbarColor:'rgba(108,60,244,0.20) transparent',
+          }}
         >
-          <div className="p-4 lg:p-7 max-w-[1380px] mx-auto w-full">
-            <div className="animate-fade-in transition-all duration-300 ease-out">{children}</div>
-          </div>
+          {/* Ambient radial behind content — purely decorative, pointer-events:none */}
+          <div
+            className="pointer-events-none absolute inset-0 z-0"
+            style={{
+              background: 'radial-gradient(ellipse 70% 50% at 30% 20%, rgba(108,60,244,0.07) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 80% 70%, rgba(168,85,247,0.04) 0%, transparent 65%)',
+            }}
+          />
+          <div className="relative z-10 p-4 lg:p-7 max-w-[1380px] mx-auto w-full">
+  <div className="relative">
+    
+    <div
+      className="absolute top-0 left-0 w-full h-[1px]"
+      style={{
+        background:
+          'linear-gradient(90deg, transparent, rgba(108,60,244,0.25), transparent)'
+      }}
+    />
+
+    <div className="animate-fade-in transition-all duration-300 ease-out">
+      {children}
+    </div>
+
+  </div>
+</div>
         </div>
       </main>
     </div>

@@ -1,23 +1,231 @@
-/* Growcad ERP - Global Styles */
+/* ──────────────────────────────────────────────────────────────
+   Growcad ERP - Global Styles (Premium System)
+────────────────────────────────────────────────────────────── */
+
+/* 🔥 Global smooth motion */
+* {
+  transition: all 0.2s ease-out;
+}
+
+/* 🔥 GPU optimization */
+.gpu {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Basic Animations
+────────────────────────────────────────────────────────────── */
+
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
+  animation: fadeIn 0.5s ease-out forwards;
 }
+
 @keyframes slideIn {
-    from { opacity: 0; transform: translateX(-12px); }
-    to { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 .animate-slide-in {
-    animation: slideIn 0.25s ease-out forwards;
+  animation: slideIn 0.25s ease-out forwards;
 }
+
+/* ──────────────────────────────────────────────────────────────
+   Pulse / Glow
+────────────────────────────────────────────────────────────── */
+
 @keyframes pulse-ring {
-    0% { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0.4); }
-    70% { box-shadow: 0 0 0 6px rgba(108, 60, 244, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0.4); }
+  70%  { box-shadow: 0 0 0 6px rgba(108, 60, 244, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(108, 60, 244, 0); }
 }
 .pulse-ring {
-    animation: pulse-ring 1.5s infinite;
+  animation: pulse-ring 1.5s infinite;
 }
+
+/* Glow utilities */
+.glow-violet {
+  box-shadow:
+    0 0 20px rgba(108,60,244,0.25),
+    0 0 40px rgba(108,60,244,0.15);
+}
+
+.glow-emerald {
+  box-shadow:
+    0 0 20px rgba(16,185,129,0.25),
+    0 0 40px rgba(16,185,129,0.15);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Background Motion
+────────────────────────────────────────────────────────────── */
+
+@keyframes bgMove {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.animate-bg {
+  background-size: 200% 200%;
+  animation: bgMove 18s ease infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Floating Animations
+────────────────────────────────────────────────────────────── */
+
+@keyframes floatY {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-14px); }
+  100% { transform: translateY(0px); }
+}
+.animate-float {
+  animation: floatY 7s ease-in-out infinite;
+}
+
+/* Softer variation */
+@keyframes floatSoft {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+.animate-float-soft {
+  animation: floatSoft 6s ease-in-out infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Particles
+────────────────────────────────────────────────────────────── */
+
+@keyframes particleRise {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(-120px) scale(0.3);
+    opacity: 0;
+  }
+}
+
+.particle {
+  animation: particleRise 6s linear infinite;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Glass System (Premium)
+────────────────────────────────────────────────────────────── */
+
+.glass {
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.08),
+    rgba(255,255,255,0.03)
+  );
+
+  border: 1px solid rgba(255,255,255,0.12);
+
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 60px rgba(108,60,244,0.08);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Hover + Interaction
+────────────────────────────────────────────────────────────── */
+
+.hover-lift {
+  transition: all 0.25s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Buttons */
+.btn-glow {
+  transition: all 0.25s ease;
+}
+
+.btn-glow:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 8px 25px rgba(108,60,244,0.35),
+    0 0 40px rgba(108,60,244,0.25);
+}
+
+.btn-glow:active {
+  transform: scale(0.96);
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Section Entry Animation
+────────────────────────────────────────────────────────────── */
+
+@keyframes fadeScale {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-scale {
+  animation: fadeScale 0.4s ease-out;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Scrollbar (Premium)
+────────────────────────────────────────────────────────────── */
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.25),
+    rgba(255,255,255,0.08)
+  );
+  border-radius: 2px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Accessibility (VERY IMPORTANT)
+────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(108,60,244,0.35),
+    rgba(108,60,244,0.12)
+  );
+}
+
+
+nav {
+  scroll-behavior: smooth;
+}
+
