@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Upload, X, FileText, CheckCircle2, AlertCircle, Download } from 'lucide-react';
 import API from '@/api';
 
@@ -74,14 +75,14 @@ export default function CSVUploadDialog({ open, onClose, type, onSuccess }) {
   const DIALOG_BG = 'linear-gradient(160deg, rgba(20,17,34,0.99), rgba(14,12,24,0.99))';
   const BORDER    = '1px solid rgba(255,255,255,0.10)';
 
-  return (
+  const dialog = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.68)', backdropFilter: 'blur(6px)' }}
       data-testid="csv-upload-dialog"
     >
       <div
-        className="w-full max-w-lg animate-scale-in"
+        className="relative z-[10000] w-full max-w-lg animate-scale-in"
         style={{
           background:     DIALOG_BG,
           border:         BORDER,
@@ -362,4 +363,6 @@ export default function CSVUploadDialog({ open, onClose, type, onSuccess }) {
       </div>
     </div>
   );
+
+  return createPortal(dialog, document.body);
 }

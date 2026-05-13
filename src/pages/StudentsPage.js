@@ -207,7 +207,7 @@ export default function StudentsPage() {
             <div className="w-8 h-8 rounded-full animate-spin"
               style={{ border: '2px solid rgba(108,60,244,0.22)', borderTopColor: '#7c4ff5' }} />
             <p className="text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              Loading…
+              Loading Students…
             </p>
           </div>
         </div>
