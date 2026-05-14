@@ -19,6 +19,8 @@ const adminNav = [
   { path: '/live-classes',  label: 'Live Classes',   icon: Video },
   { path: '/fees',          label: 'Fees',           icon: CreditCard },
   { path: '/tests',         label: 'Tests',          icon: FileText },
+  { path: '/question-bank', label: 'Question Bank',  icon: BookOpen },
+  { path: '/study-material', label: 'Study Material', icon: FileText },
   { path: '/reports',       label: 'Reports',        icon: BarChart3 },
   { path: '/announcements', label: 'Announcements',  icon: Megaphone },
   { path: '/communication', label: 'Communication',  icon: MessageSquare },
@@ -31,6 +33,8 @@ const teacherNav = [
   { path: '/attendance',   label: 'Attendance',   icon: ClipboardCheck },
   { path: '/live-classes', label: 'Live Classes', icon: Video },
   { path: '/tests',        label: 'Tests',        icon: FileText },
+  { path: '/question-bank', label: 'Question Bank', icon: BookOpen },
+  { path: '/study-material', label: 'Study Material', icon: FileText },
 ];
 
 const studentNav = [
@@ -39,6 +43,7 @@ const studentNav = [
   { path: '/my-fees',       label: 'My Fees',       icon: CreditCard },
   { path: '/my-tests',      label: 'My Tests',      icon: FileText },
   { path: '/live-classes',  label: 'Live Classes',  icon: Video },
+  { path: '/study-material', label: 'Study Material', icon: FileText },
   { path: '/announcements', label: 'Announcements', icon: Megaphone },
 ];
 
@@ -67,6 +72,8 @@ const ROLE_META = {
 // ─── Page title helper ─────────────────────────────────────────
 
 function pageTitle(pathname) {
+  if (pathname.startsWith('/students/') && pathname !== '/students') return 'Student Profile';
+  if (pathname.startsWith('/teachers/') && pathname !== '/teachers') return 'Teacher Profile';
   return pathname.replace('/', '').replace(/-/g, ' ') || 'Dashboard';
 }
 

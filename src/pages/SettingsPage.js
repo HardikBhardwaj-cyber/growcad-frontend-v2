@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   Save, Check, Building2, User, Bell, BellRing, MessageSquare,
   Smartphone, ToggleLeft, ToggleRight, Clock, History, RefreshCw, ChevronDown, ChevronUp,
-  Sliders
+  Sliders, Users, BookOpen
 } from 'lucide-react';
 
 const GLASS = {
@@ -295,7 +295,11 @@ export default function SettingsPage() {
       });
     });
     API.get('/settings/reminders').then(r => setReminderSettings(r.data));
-    API.get('/settings/features').then(r => setFeatureFlags(r.data));
+    API.get('/settings/features').then(r => setFeatureFlags({
+      multi_teacher_batches_enabled: false,
+      multi_subject_batches_enabled: false,
+      ...(r.data || {}),
+    }));
     API.get('/institute/plan').then(r => setCurrentPlan(r.data.plan));
   }, []);
 
@@ -374,6 +378,8 @@ export default function SettingsPage() {
     { key: 'fee_enabled', label: 'Fee Management', desc: 'Fee collection and tracking' },
     { key: 'reminders_enabled', label: 'Fee Reminders', desc: 'Automated fee reminders' },
     { key: 'communication_enabled', label: 'Communication Center', desc: 'Send messages to students' },
+    { key: 'multi_teacher_batches_enabled', label: 'Multi-Teacher Batches', desc: 'Assign multiple teachers to one batch', icon: Users },
+    { key: 'multi_subject_batches_enabled', label: 'Multi-Subject Batches', desc: 'Add multiple subjects to one batch', icon: BookOpen },
   ];
 
   const channelConfig = [

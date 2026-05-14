@@ -49,6 +49,13 @@ const LABEL_STYLE = {
 
 // ─── Focus helpers (reused across input / textarea / select) ───
 
+const DEFAULT_FORM = {
+  title: '',
+  message: '',
+  targetBatchId: '',
+  targetAudience: 'students',
+};
+
 const onFocus = e => {
   e.currentTarget.style.borderColor = 'rgba(108,60,244,0.65)';
   e.currentTarget.style.boxShadow  = '0 0 0 3px rgba(108,60,244,0.14)';
@@ -67,7 +74,7 @@ export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState([]);
   const [batches,       setBatches]       = useState([]);
   const [showForm,      setShowForm]      = useState(false);
-  const [form,          setForm]          = useState({ title: '', message: '', targetBatchId: '' });
+  const [form,          setForm]          = useState(DEFAULT_FORM);
   const [saving,        setSaving]        = useState(false);
 
   // ── Effects + handlers (unchanged) ───────────────────────────
@@ -78,11 +85,34 @@ export default function AnnouncementsPage() {
     e.preventDefault();
     if (!form.title.trim() || !form.message.trim()) return;
     setSaving(true);
-    await API.post('/announcements', form);
+    await API.post('/announcements', {
+      title: form.title,
+      message: form.message,
+      targetBatchId: form.targetAudience === 'teachers' ? '' : form.targetBatchId,
+      targetAudience: form.targetAudience || 'students',
+    });
     setSaving(false);
     setShowForm(false);
-    setForm({ title: '', message: '', targetBatchId: '' });
+    setForm(DEFAULT_FORM);
     fetch();
+  };
+
+  const targetValue = form.targetAudience === 'teachers'
+    ? 'teachers_all'
+    : form.targetBatchId
+      ? `batch:${form.targetBatchId}`
+      : 'students_all';
+
+  const handleTargetChange = (value) => {
+    if (value === 'teachers_all') {
+      setForm({ ...form, targetAudience: 'teachers', targetBatchId: '' });
+      return;
+    }
+    if (value.startsWith('batch:')) {
+      setForm({ ...form, targetAudience: 'students', targetBatchId: value.replace('batch:', '') });
+      return;
+    }
+    setForm({ ...form, targetAudience: 'students', targetBatchId: '' });
   };
 
   const handleDelete = async (id) => {
@@ -246,15 +276,16 @@ export default function AnnouncementsPage() {
                 <div className="relative">
                   <select
                     data-testid="announcement-target"
-                    value={form.targetBatchId}
-                    onChange={e => setForm({ ...form, targetBatchId: e.target.value })}
+                    value={targetValue}
+                    onChange={e => handleTargetChange(e.target.value)}
                     style={{ ...INPUT_STYLE, appearance: 'none', cursor: 'pointer', paddingRight: 30 }}
                     onFocus={onFocus}
                     onBlur={onBlur}
                   >
-                    <option value="" style={{ background: '#1a1625' }}>All Students</option>
+                    <option value="students_all" style={{ background: '#1a1625' }}>All Students</option>
+                    <option value="teachers_all" style={{ background: '#1a1625' }}>All Teachers</option>
                     {batches.map(b => (
-                      <option key={b.id} value={b.id} style={{ background: '#1a1625' }}>
+                      <option key={b.id} value={`batch:${b.id}`} style={{ background: '#1a1625' }}>
                         {b.batchName}
                       </option>
                     ))}
@@ -386,7 +417,19 @@ export default function AnnouncementsPage() {
                       </span>
 
                       {/* Batch badge */}
-                      {ann.targetBatchName ? (
+                      {ann.targetAudience === 'teachers' ? (
+                        <span
+                          className="text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1"
+                          style={{
+                            background: 'rgba(79,70,229,0.16)',
+                            color:      '#a5b4fc',
+                            border:     '1px solid rgba(129,140,248,0.26)',
+                          }}
+                        >
+                          <Users size={9} />
+                          All Teachers
+                        </span>
+                      ) : ann.targetBatchName ? (
                         <span
                           className="text-[10px] px-2 py-0.5 rounded-full font-bold"
                           style={{

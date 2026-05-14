@@ -18,26 +18,69 @@ function money(n = 0) {
   return `Rs.${Number(n || 0).toLocaleString('en-IN')}`;
 }
 
-function statusStyle(status) {
-  if (status === 'paid') {
+function localDateKey(value = new Date()) {
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getInstallmentDisplayStatus(inst) {
+  if (inst?.status === 'paid') {
     return {
+      key: 'paid',
+      label: 'Paid',
       background: 'rgba(16,185,129,0.14)',
       border: '1px solid rgba(52,211,153,0.25)',
       color: '#34d399',
+      rowBackground: 'rgba(16,185,129,0.045)',
+      rowBorder: '1px solid rgba(52,211,153,0.15)',
     };
   }
-  if (status === 'partial') {
+
+  const dueDate = localDateKey(inst?.dueDate);
+  const today = localDateKey();
+
+  if (dueDate && dueDate > today) {
     return {
+      key: 'upcoming',
+      label: 'Upcoming',
       background: 'rgba(245,158,11,0.14)',
       border: '1px solid rgba(251,191,36,0.25)',
       color: '#fbbf24',
+      rowBackground: 'rgba(245,158,11,0.06)',
+      rowBorder: '1px solid rgba(251,191,36,0.16)',
     };
   }
+
   return {
+    key: 'pending',
+    label: 'Pending',
     background: 'rgba(239,68,68,0.12)',
     border: '1px solid rgba(248,113,113,0.22)',
     color: '#f87171',
+    rowBackground: 'rgba(239,68,68,0.055)',
+    rowBorder: '1px solid rgba(248,113,113,0.15)',
   };
+}
+
+function getDisplayStudentId(student, fallbackId) {
+  if (student?.studentCode) return student.studentCode;
+  if (student?.studentId) return student.studentId;
+  if (student?.rollNumber) return student.rollNumber;
+  if (student?.admissionNumber) return student.admissionNumber;
+  if (fallbackId?.startsWith('student_')) return fallbackId;
+
+  const source = fallbackId || student?.id || '';
+  const compact = String(source).replace(/-/g, '').slice(0, 8).toUpperCase();
+  return `STU-${compact || 'UNKNOWN'}`;
 }
 
 function scoreStyle(score) {
@@ -86,15 +129,23 @@ export default function StudentProfilePage() {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64" data-testid="profile-loading">
-      <div className="flex flex-col items-center gap-3">
-        <div
-          className="w-9 h-9 rounded-full animate-spin"
-          style={{ border: '3px solid rgba(108,60,244,0.22)', borderTopColor: '#8b5cf6' }}
-        />
-        <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: MUTED }}>
-          Loading profile
-        </p>
+    <div data-testid="profile-loading" className="relative animate-fade-in">
+      <div className="flex items-center justify-center h-48">
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-full animate-spin"
+            style={{
+              border: '2px solid rgba(108,60,244,0.22)',
+              borderTopColor: '#7c4ff5',
+            }}
+          />
+          <p
+            className="text-[11px] uppercase tracking-widest"
+            style={{ color: 'rgba(255,255,255,0.38)' }}
+          >
+            Loading student profile...
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -110,6 +161,7 @@ export default function StudentProfilePage() {
   );
 
   const { student, batch, attendance, fees, tests } = data;
+  const displayStudentId = getDisplayStudentId(student, id);
 
   return (
     <div data-testid="student-profile-page" className="space-y-5 animate-fade-in">
@@ -133,7 +185,11 @@ export default function StudentProfilePage() {
         <div className="min-w-0">
           <h1 className="text-[1.55rem] font-bold tracking-tight truncate" style={{ color: PRIMARY }}>{student.name}</h1>
           <p className="text-xs mt-1 truncate" style={{ color: MUTED }}>
-            {batch?.batchName || 'No batch assigned'} <span className="text-white/20 px-1.5">|</span> {student.email || 'No email'}
+            {batch?.batchName || 'No batch assigned'}
+            <span className="text-white/20 px-1.5">|</span>
+            {displayStudentId}
+            <span className="text-white/20 px-1.5">|</span>
+            {student.email || 'No email'}
           </p>
         </div>
       </div>
@@ -202,27 +258,35 @@ export default function StudentProfilePage() {
               className="space-y-2 max-h-52 overflow-y-auto pr-1"
               style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(108,60,244,0.36) transparent' }}
             >
-              {fees.records[0]?.installments?.map((inst, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between gap-3 p-3 rounded-xl transition-all"
-                  style={{
-                    background: inst.status === 'paid' ? 'rgba(16,185,129,0.045)' : 'rgba(255,255,255,0.045)',
-                    border: inst.status === 'paid' ? '1px solid rgba(52,211,153,0.15)' : '1px solid rgba(255,255,255,0.08)',
-                  }}
-                >
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED }}>Installment {i + 1}</p>
-                    <p className="text-sm font-bold mt-1" style={{ color: PRIMARY }}>{money(inst.amount)}</p>
+              {fees.records[0]?.installments?.map((inst, i) => {
+                const displayStatus = getInstallmentDisplayStatus(inst);
+
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 p-3 rounded-xl transition-all"
+                    style={{
+                      background: displayStatus.rowBackground,
+                      border: displayStatus.rowBorder,
+                    }}
+                  >
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED }}>Installment {i + 1}</p>
+                      <p className="text-sm font-bold mt-1" style={{ color: PRIMARY }}>{money(inst.amount)}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] px-2 py-1 rounded-full font-bold" style={{
+                        background: displayStatus.background,
+                        border: displayStatus.border,
+                        color: displayStatus.color,
+                      }}>
+                        {displayStatus.label}
+                      </span>
+                      <p className="text-[10px] mt-1.5" style={{ color: MUTED }}>{inst.dueDate || '-'}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] px-2 py-1 rounded-full font-bold capitalize" style={statusStyle(inst.status)}>
-                      {inst.status}
-                    </span>
-                    <p className="text-[10px] mt-1.5" style={{ color: MUTED }}>{inst.dueDate}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-xs" style={{ color: MUTED }}>No fee records</p>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import API from '@/api';
-import { Bell, Check, CheckCheck, CreditCard, Users, ClipboardCheck, FileText, Settings } from 'lucide-react';
+import { Bell, Check, CheckCheck, ChevronDown, CreditCard, Users, ClipboardCheck, FileText, Settings, Trash2 } from 'lucide-react';
 
 const GLASS = {
   background: 'linear-gradient(145deg, rgba(255,255,255,0.07), rgba(255,255,255,0.025))',
@@ -65,6 +65,38 @@ function formatType(type = 'system') {
   return type.replace(/_/g, ' ');
 }
 
+function isInRange(notification, range) {
+  const created = new Date(notification.createdAt);
+  const now = new Date();
+
+  if (Number.isNaN(created.getTime())) return range === 'overall';
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (range === 'today') {
+    return created >= startOfToday;
+  }
+
+  if (range === 'week') {
+    const startOfWeek = new Date(startOfToday);
+    startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+    return created >= startOfWeek;
+  }
+
+  if (range === 'month') {
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    return created >= startOfMonth;
+  }
+
+  return true;
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString();
+}
+
 function LoadingState() {
   return (
     <div data-testid="notifications-page" className="relative animate-fade-in">
@@ -86,10 +118,14 @@ function LoadingState() {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('overall');
 
   useEffect(() => {
-    API.get('/notifications').then(r => { setNotifications(r.data); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    API.get(`/notifications?range=${range}&limit=all`)
+      .then(r => { setNotifications(r.data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [range]);
 
   const markRead = async (id) => {
     await API.put(`/notifications/${id}/read`);
@@ -101,7 +137,21 @@ export default function NotificationsPage() {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const deleteNotification = async (id) => {
+    if (!window.confirm('Delete this notification?')) return;
+    await API.delete(`/notifications/${id}`);
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const deleteAllNotifications = async () => {
+    if (!window.confirm('Delete all notifications?')) return;
+    await API.delete('/notifications');
+    setNotifications([]);
+  };
+
+  const visibleNotifications = notifications.filter(n => isInRange(n, range));
+  const unreadCount = visibleNotifications.filter(n => !n.read).length;
+  const hasAnyNotifications = notifications.length > 0;
 
   if (loading) return <LoadingState />;
 
@@ -123,41 +173,95 @@ export default function NotificationsPage() {
               Notifications
             </h1>
             <p className="mt-0.5 text-[11.5px]" style={{ color: T.muted }}>
-              {unreadCount} unread notifications
+              {unreadCount} unread · {visibleNotifications.length} shown
             </p>
           </div>
 
-          {unreadCount > 0 && (
-            <button
-              data-testid="mark-all-read"
-              onClick={markAllRead}
-              className="inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2 text-[12px] font-bold transition-all"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                color: T.secondary,
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg,#6C3CF4,#8b5cf6)';
-                e.currentTarget.style.color = '#fff';
-                e.currentTarget.style.boxShadow = '0 5px 18px rgba(108,60,244,0.38)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                e.currentTarget.style.color = T.secondary;
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.transform = 'none';
-              }}
-            >
-              <CheckCheck size={14} /> Mark all as read
-            </button>
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <select
+                data-testid="notification-range-filter"
+                value={range}
+                onChange={e => setRange(e.target.value)}
+                className="appearance-none rounded-[10px] py-2 pl-3 pr-8 text-[12px] font-bold outline-none transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  color: T.secondary,
+                  minWidth: 132,
+                }}
+              >
+                <option value="today" style={{ background: '#1a1625' }}>Today</option>
+                <option value="week" style={{ background: '#1a1625' }}>This Week</option>
+                <option value="month" style={{ background: '#1a1625' }}>This Month</option>
+                <option value="overall" style={{ background: '#1a1625' }}>Overall</option>
+              </select>
+              <ChevronDown
+                size={13}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2"
+                style={{ color: 'rgba(255,255,255,0.35)' }}
+              />
+            </div>
+
+            {unreadCount > 0 && (
+              <button
+                data-testid="mark-all-read"
+                onClick={markAllRead}
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2 text-[12px] font-bold transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  color: T.secondary,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'linear-gradient(135deg,#6C3CF4,#8b5cf6)';
+                  e.currentTarget.style.color = '#fff';
+                  e.currentTarget.style.boxShadow = '0 5px 18px rgba(108,60,244,0.38)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.color = T.secondary;
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <CheckCheck size={14} /> Mark all as read
+              </button>
+            )}
+
+            {hasAnyNotifications && (
+              <button
+                data-testid="delete-all-notifications"
+                onClick={deleteAllNotifications}
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] px-4 py-2 text-[12px] font-bold transition-all"
+                style={{
+                  background: 'rgba(239,68,68,0.08)',
+                  border: '1px solid rgba(248,113,113,0.18)',
+                  color: '#fca5a5',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.14)';
+                  e.currentTarget.style.borderColor = 'rgba(248,113,113,0.30)';
+                  e.currentTarget.style.color = '#f87171';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
+                  e.currentTarget.style.borderColor = 'rgba(248,113,113,0.18)';
+                  e.currentTarget.style.color = '#fca5a5';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <Trash2 size={14} /> Delete all
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="space-y-3">
-        {notifications.map(n => {
+        {visibleNotifications.map(n => {
           const typeKey = getTypeKey(n.type);
           const style = TYPE_STYLES[typeKey];
           const Icon = style.icon || Bell;
@@ -218,31 +322,57 @@ export default function NotificationsPage() {
                     </p>
                   </div>
 
-                  {!n.read && (
+                  <div className="flex shrink-0 flex-col gap-2">
+                    {!n.read && (
+                      <button
+                        onClick={() => markRead(n.id)}
+                        data-testid={`mark-read-${n.id}`}
+                        className="rounded-xl p-2 transition-all"
+                        style={{
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          color: T.muted,
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(16,185,129,0.12)';
+                          e.currentTarget.style.borderColor = 'rgba(52,211,153,0.26)';
+                          e.currentTarget.style.color = '#34d399';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                          e.currentTarget.style.color = T.muted;
+                        }}
+                        title="Mark as read"
+                      >
+                        <Check size={14} />
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => markRead(n.id)}
-                      data-testid={`mark-read-${n.id}`}
-                      className="shrink-0 rounded-xl p-2 transition-all"
+                      onClick={() => deleteNotification(n.id)}
+                      data-testid={`delete-notification-${n.id}`}
+                      className="rounded-xl p-2 transition-all"
                       style={{
                         background: 'rgba(255,255,255,0.05)',
                         border: '1px solid rgba(255,255,255,0.08)',
                         color: T.muted,
                       }}
                       onMouseEnter={e => {
-                        e.currentTarget.style.background = 'rgba(16,185,129,0.12)';
-                        e.currentTarget.style.borderColor = 'rgba(52,211,153,0.26)';
-                        e.currentTarget.style.color = '#34d399';
+                        e.currentTarget.style.background = 'rgba(239,68,68,0.10)';
+                        e.currentTarget.style.borderColor = 'rgba(248,113,113,0.25)';
+                        e.currentTarget.style.color = '#f87171';
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
                         e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
                         e.currentTarget.style.color = T.muted;
                       }}
-                      title="Mark as read"
+                      title="Delete notification"
                     >
-                      <Check size={14} />
+                      <Trash2 size={14} />
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -257,7 +387,7 @@ export default function NotificationsPage() {
                     {formatType(n.type)}
                   </span>
                   <span className="text-[10px] font-semibold" style={{ color: T.label }}>
-                    {new Date(n.createdAt).toLocaleDateString()}
+                    {formatDate(n.createdAt)}
                   </span>
                 </div>
               </div>
@@ -265,7 +395,7 @@ export default function NotificationsPage() {
           );
         })}
 
-        {!notifications.length && (
+        {!visibleNotifications.length && (
           <div className="flex flex-col items-center justify-center px-6 py-14 text-center" style={GLASS}>
             <div
               className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
@@ -278,9 +408,13 @@ export default function NotificationsPage() {
             >
               <Bell size={24} />
             </div>
-            <p className="text-sm font-bold" style={{ color: T.title }}>No notifications yet</p>
+            <p className="text-sm font-bold" style={{ color: T.title }}>
+              {hasAnyNotifications ? 'No notifications for this range' : 'No notifications yet'}
+            </p>
             <p className="mt-1 text-xs" style={{ color: T.muted }}>
-              Updates, reminders, and system alerts will appear here.
+              {hasAnyNotifications
+                ? 'Choose another range to see older updates.'
+                : 'Updates, reminders, and system alerts will appear here.'}
             </p>
           </div>
         )}

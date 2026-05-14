@@ -14,6 +14,203 @@ import {
 
 const PIE_COLORS = ['#7c4ff5', 'rgba(108,60,244,0.18)'];
 
+const TREND_COLORS = {
+  up: '#34d399',
+  down: '#f87171',
+  neutral: '#fbbf24',
+};
+
+function neutralTrend() {
+  return {
+    percentage: 0,
+    direction: 'neutral',
+    color: TREND_COLORS.neutral,
+    arrow: '\u2192',
+  };
+}
+
+function toFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function calculateTrend(currentValue, previousValue) {
+  if (currentValue === null || currentValue === undefined || previousValue === null || previousValue === undefined) {
+    return neutralTrend();
+  }
+
+  const current = Number(currentValue);
+  const previous = Number(previousValue);
+
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) {
+    return neutralTrend();
+  }
+
+  if (current === previous) {
+    return neutralTrend();
+  }
+
+  if (previous === 0) {
+    if (current > 0) {
+      return {
+        percentage: 100,
+        direction: 'up',
+        color: TREND_COLORS.up,
+        arrow: '\u2191',
+      };
+    }
+    return neutralTrend();
+  }
+
+  const direction = current > previous ? 'up' : 'down';
+  const percentage = Math.round((Math.abs(current - previous) / Math.abs(previous)) * 1000) / 10;
+
+  return {
+    percentage,
+    direction,
+    color: TREND_COLORS[direction],
+    arrow: direction === 'up' ? '\u2191' : '\u2193',
+  };
+}
+
+function formatTrendPercentage(value) {
+  const n = toFiniteNumber(value);
+  return Number.isInteger(n) ? `${n}` : n.toFixed(1).replace(/\.0$/, '');
+}
+
+function formatNumber(value) {
+  return Math.round(toFiniteNumber(value)).toLocaleString('en-US');
+}
+
+function formatCurrency(value) {
+  return `Rs. ${formatNumber(value)}`;
+}
+
+function formatCompactCurrency(value) {
+  const n = toFiniteNumber(value);
+  const abs = Math.abs(n);
+
+  if (abs >= 1000000) {
+    const compact = n / 1000000;
+    return `Rs.${compact.toFixed(compact >= 10 ? 0 : 1).replace(/\.0$/, '')}M`;
+  }
+
+  if (abs >= 1000) {
+    return `Rs.${Math.round(n / 1000)}K`;
+  }
+
+  return `Rs.${formatNumber(n)}`;
+}
+
+function currentMonthKey(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function previousMonthKey(date = new Date()) {
+  return currentMonthKey(new Date(date.getFullYear(), date.getMonth() - 1, 1));
+}
+
+function startOfCurrentMonth(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function safeDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function derivePreviousActiveTotal(records, monthStart) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+
+  const datedRecords = records
+    .map(record => safeDate(record.createdAt))
+    .filter(Boolean);
+
+  if (datedRecords.length === 0) return null;
+
+  return datedRecords.filter(createdAt => createdAt < monthStart).length;
+}
+
+function attendanceRate(records) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+
+  const present = records.filter(r => ['present', 'late'].includes(r.status)).length;
+  return Math.round((present / records.length) * 1000) / 10;
+}
+
+function derivePreviousAttendanceRate(records, todayStr) {
+  if (!Array.isArray(records) || records.length === 0) return null;
+
+  const byDate = new Map();
+
+  records.forEach(record => {
+    const date = record.date;
+    if (!date || date >= todayStr) return;
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date).push(record);
+  });
+
+  const rates = Array.from(byDate.values())
+    .map(attendanceRate)
+    .filter(rate => Number.isFinite(rate));
+
+  if (rates.length === 0) return null;
+
+  const average = rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+  return Math.round(average * 10) / 10;
+}
+
+function getRevenueYAxisWidth(data) {
+  const maxValue = Math.max(0, ...data.map(row => toFiniteNumber(row.collected)));
+  return Math.max(64, Math.min(104, formatNumber(maxValue).length * 8 + 18));
+}
+
+async function fetchAdminTrendData(stats) {
+  const [studentsRes, batchesRes, attendanceRes] = await Promise.allSettled([
+    API.get('/students'),
+    API.get('/batches'),
+    API.get('/attendance'),
+  ]);
+
+  const students = studentsRes.status === 'fulfilled' && Array.isArray(studentsRes.value.data)
+    ? studentsRes.value.data
+    : [];
+  const batches = batchesRes.status === 'fulfilled' && Array.isArray(batchesRes.value.data)
+    ? batchesRes.value.data
+    : [];
+  const attendance = attendanceRes.status === 'fulfilled' && Array.isArray(attendanceRes.value.data)
+    ? attendanceRes.value.data
+    : [];
+
+  const monthStart = startOfCurrentMonth();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const monthlyFees = stats?.monthlyFees || {};
+  const hasRevenueHistory = Object.keys(monthlyFees).length > 0;
+  const todayAttendance = stats?.todayAttendanceRate;
+
+  return {
+    totalStudents: calculateTrend(
+      stats?.totalStudents ?? students.length,
+      derivePreviousActiveTotal(students, monthStart)
+    ),
+    totalBatches: calculateTrend(
+      stats?.totalBatches ?? batches.length,
+      derivePreviousActiveTotal(batches, monthStart)
+    ),
+    revenueCollected: hasRevenueHistory
+      ? calculateTrend(
+          toFiniteNumber(monthlyFees[currentMonthKey()]),
+          toFiniteNumber(monthlyFees[previousMonthKey()])
+        )
+      : neutralTrend(),
+    todayAttendance: calculateTrend(
+      todayAttendance === null || todayAttendance === undefined ? null : toFiniteNumber(todayAttendance),
+      derivePreviousAttendanceRate(attendance, todayStr)
+    ),
+  };
+}
+
 // ─── Injected CSS ─────────────────────────────────────────────────────────────
 // Kept as injected-at-runtime because this component controls its own style scope.
 // Changes vs original:
@@ -164,6 +361,10 @@ function EmptyState({ text }) {
 // CustomTooltip: label was 0.48 → 0.60
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
+  const valueLabel = payload[0].dataKey === 'collected'
+    ? formatCurrency(payload[0].value)
+    : formatNumber(payload[0].value);
+
   return (
     <div style={{
       background:'rgba(14,11,26,0.97)', backdropFilter:'blur(16px)',
@@ -173,14 +374,16 @@ function CustomTooltip({ active, payload, label }) {
     }}>
       <p style={{ color:'rgba(255,255,255,0.60)', marginBottom:4, fontSize:'10px', letterSpacing:'0.05em' }}>{label}</p>
       <p style={{ fontWeight:700, color:'#c4b5fd' }}>
-        {payload[0].name}: {payload[0].value?.toLocaleString?.() ?? payload[0].value}
+        Revenue collected: {valueLabel}
       </p>
     </div>
   );
 }
 
 // MetricCard: label opacity 0.30 → 0.45, trend badge kept
-function MetricCard({ label, value, icon: Icon, color, testId, animClass }) {
+function MetricCard({ label, value, icon: Icon, color, testId, animClass, trend }) {
+  const safeTrend = trend || neutralTrend();
+
   return (
     <div
       data-testid={testId}
@@ -200,7 +403,9 @@ function MetricCard({ label, value, icon: Icon, color, testId, animClass }) {
       </div>
       <p className="text-[1.75rem] font-bold text-white leading-none tracking-tight flex items-center gap-2">
         {value}
-        <span className="text-[10px] font-semibold" style={{ color:'#34d399' }}>↑ 12%</span>
+        <span className="text-[12px] font-semibold" style={{ color:safeTrend.color }}>
+          {safeTrend.arrow} {formatTrendPercentage(safeTrend.percentage)}%
+        </span>
       </p>
       <div className="mt-2.5 h-[2px] rounded-full" style={{ background:`linear-gradient(90deg,${color}55,transparent)`, width:'38%' }} />
     </div>
@@ -418,6 +623,7 @@ function PageBackground({ children }) {
 export default function DashboardPage() {
   const { user }  = useAuth();
   const [stats,   setStats]   = useState(null);
+  const [adminTrends, setAdminTrends] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -431,7 +637,21 @@ export default function DashboardPage() {
 
   useEffect(() => {
     API.get('/dashboard/stats')
-      .then(res => setStats(res.data))
+      .then(async res => {
+        const nextStats = res.data;
+        setStats(nextStats);
+
+        const dashboardRole = nextStats?.role || 'admin';
+        if (dashboardRole !== 'student' && dashboardRole !== 'teacher') {
+          const trends = await fetchAdminTrendData(nextStats).catch(() => ({
+            totalStudents: neutralTrend(),
+            totalBatches: neutralTrend(),
+            revenueCollected: neutralTrend(),
+            todayAttendance: neutralTrend(),
+          }));
+          setAdminTrends(trends);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -467,31 +687,34 @@ export default function DashboardPage() {
     <PageBackground>
       {role === 'student' ? <StudentDashboard stats={stats} /> :
        role === 'teacher' ? <TeacherDashboard stats={stats} /> :
-                            <AdminDashboard   stats={stats} />}
+                            <AdminDashboard   stats={stats} trends={adminTrends} />}
     </PageBackground>
   );
 }
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ stats }) {
+function AdminDashboard({ stats, trends }) {
   const revenueData = Object.entries(stats.monthlyFees || {})
     .sort().slice(-6)
     .map(([month, amount]) => ({
       month:     new Date(month + '-01').toLocaleDateString('en', { month:'short' }),
-      collected: Math.round(amount),
+      collected: Math.round(toFiniteNumber(amount)),
     }));
+  const revenueYAxisWidth = getRevenueYAxisWidth(revenueData);
+  const overallAttendanceRate = toFiniteNumber(stats.attendanceRate);
+  const todayAttendanceRate = toFiniteNumber(stats.todayAttendanceRate);
 
   const attendanceData = [
-    { name:'Present', value: stats.attendanceRate || 0 },
-    { name:'Absent',  value: Math.round((100 - (stats.attendanceRate || 0)) * 10) / 10 },
+    { name:'Present', value: overallAttendanceRate },
+    { name:'Absent',  value: Math.max(0, Math.round((100 - overallAttendanceRate) * 10) / 10) },
   ];
 
   const metricCards = [
-    { label:'Total Students',     value:stats.totalStudents,                              icon:GraduationCap,  color:'#7c4ff5' },
-    { label:'Total Batches',      value:stats.totalBatches || 0,                          icon:BookOpen,       color:'#3b82f6' },
-    { label:'Revenue Collected',  value:`Rs.${(stats.monthlyRevenue/1000).toFixed(0)}K`, icon:IndianRupee,    color:'#10b981' },
-    { label:"Today's Attendance", value:`${stats.todayAttendanceRate || 0}%`,             icon:ClipboardCheck, color:'#f59e0b' },
+    { label:'Total Students',     value:formatNumber(stats.totalStudents),           icon:GraduationCap,  color:'#7c4ff5', trend:trends?.totalStudents },
+    { label:'Total Batches',      value:formatNumber(stats.totalBatches || 0),       icon:BookOpen,       color:'#3b82f6', trend:trends?.totalBatches },
+    { label:'Revenue Collected',  value:formatCompactCurrency(stats.monthlyRevenue), icon:IndianRupee,    color:'#10b981', trend:trends?.revenueCollected },
+    { label:"Today's Attendance", value:`${todayAttendanceRate}%`,                   icon:ClipboardCheck, color:'#f59e0b', trend:trends?.todayAttendance },
   ];
 
   return (
@@ -537,7 +760,7 @@ function AdminDashboard({ stats }) {
           </div>
           {revenueData.length > 0 ? (
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={revenueData} barSize={26}>
+              <BarChart data={revenueData} barSize={26} margin={{ left: 8, right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                 {/* axis tick fill: was 0.32 → 0.52 — much more readable */}
                 <XAxis
@@ -547,10 +770,12 @@ function AdminDashboard({ stats }) {
                   tickLine={false}
                 />
                 <YAxis
+                  tickFormatter={formatNumber}
                   tick={{ fill:'rgba(255,255,255,0.55)', fontSize:11, fontFamily:'Plus Jakarta Sans' }}
                   axisLine={false}
                   tickLine={false}
-                  width={42}
+                  width={revenueYAxisWidth}
+                  allowDecimals={false}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill:'rgba(108,60,244,0.06)', radius:6 }} />
                 <defs>
@@ -595,8 +820,8 @@ function AdminDashboard({ stats }) {
           {/* Legend: was text-white/42 → 0.62 */}
           <div className="flex justify-center gap-5 -mt-1">
             {[
-              { label:`Present ${stats.attendanceRate}%`,                  color:'#7c4ff5' },
-              { label:`Absent ${(100 - stats.attendanceRate).toFixed(1)}%`, color:'rgba(108,60,244,0.35)' },
+              { label:`Present ${overallAttendanceRate}%`,                  color:'#7c4ff5' },
+              { label:`Absent ${Math.max(0, 100 - overallAttendanceRate).toFixed(1)}%`, color:'rgba(108,60,244,0.35)' },
             ].map(({ label, color }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full" style={{ background:color }} />

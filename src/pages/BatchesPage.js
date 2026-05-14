@@ -5,7 +5,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Pencil, Trash2, X, BookOpen, Users, Clock, ChevronDown } from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const emptyForm = { batchName: '', courseName: '', subject: '', teacherId: '', classDuration: '', scheduleDays: [], startDate: '', maxStudents: 30 };
+const emptyForm = {
+  batchName: '',
+  courseName: '',
+  subject: '',
+  teacherId: '',
+  teacherIds: [],
+  subjects: [],
+  classDuration: '',
+  scheduleDays: [],
+  startDate: '',
+  maxStudents: 30,
+};
+
+const makeEmptyForm = () => ({
+  ...emptyForm,
+  teacherIds: [],
+  subjects: [],
+  scheduleDays: [],
+});
+
+const FEATURE_DEFAULTS = {
+  multi_teacher_batches_enabled: false,
+  multi_subject_batches_enabled: false,
+};
 
 const INPUT = {
   background: 'rgba(255,255,255,0.06)',
@@ -63,6 +86,57 @@ function InfoRow({ icon, children }) {
   );
 }
 
+function MiniChip({ children, onRemove, tone = 'purple' }) {
+  const tones = {
+    purple: ['rgba(108,60,244,0.15)', 'rgba(167,139,250,0.28)', '#c4b5fd'],
+    blue: ['rgba(59,130,246,0.14)', 'rgba(96,165,250,0.24)', '#93c5fd'],
+    slate: ['rgba(148,163,184,0.10)', 'rgba(148,163,184,0.18)', '#cbd5e1'],
+  };
+  const [background, border, color] = tones[tone] || tones.purple;
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold"
+      style={{ background, border: `1px solid ${border}`, color }}
+    >
+      <span className="truncate max-w-[150px]">{children}</span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="rounded-md"
+          style={{ color: 'rgba(255,255,255,0.62)' }}
+        >
+          <X size={11} />
+        </button>
+      )}
+    </span>
+  );
+}
+
+function uniqueList(items) {
+  return [...new Set((items || []).filter(Boolean))];
+}
+
+function getBatchTeacherIds(batch = {}) {
+  const ids = Array.isArray(batch.teacherIds) ? batch.teacherIds.filter(Boolean) : [];
+  if (ids.length) return uniqueList(ids);
+
+  const teacherObjects = Array.isArray(batch.teachers) ? batch.teachers : [];
+  const derived = teacherObjects
+    .map(t => (typeof t === 'string' ? t : (t?.id || t?.teacherId || '')))
+    .filter(Boolean);
+  if (derived.length) return uniqueList(derived);
+
+  return batch.teacherId ? [batch.teacherId] : [];
+}
+
+function getBatchSubjects(batch = {}) {
+  const subjects = Array.isArray(batch.subjects) ? batch.subjects.filter(Boolean) : [];
+  if (subjects.length) return uniqueList(subjects);
+  return batch.subject ? [batch.subject] : [];
+}
+
 export default function BatchesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -70,24 +144,104 @@ export default function BatchesPage() {
   const [teachers, setTeachers] = useState([]);
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(makeEmptyForm());
+  const [subjectDraft, setSubjectDraft] = useState('');
+  const [featureFlags, setFeatureFlags] = useState(FEATURE_DEFAULTS);
   const [loading, setLoading] = useState(true);
 
   const fetchBatches = () => {
     API.get('/batches').then(r => { setBatches(r.data); setLoading(false); }).catch(() => setLoading(false));
   };
 
-  useEffect(() => { fetchBatches(); API.get('/teachers').then(r => setTeachers(r.data)); }, []);
+  useEffect(() => {
+    fetchBatches();
+    API.get('/teachers').then(r => setTeachers(r.data));
+    API.get('/settings/features')
+      .then(r => setFeatureFlags({ ...FEATURE_DEFAULTS, ...(r.data || {}) }))
+      .catch(() => setFeatureFlags(FEATURE_DEFAULTS));
+  }, []);
+
+  const multiTeacherEnabled = Boolean(featureFlags.multi_teacher_batches_enabled);
+  const multiSubjectEnabled = Boolean(featureFlags.multi_subject_batches_enabled);
+
+  const teacherLabel = (teacherId, batch = null) => {
+    const teacher = teachers.find(t => t.id === teacherId);
+    if (teacher) return teacher.name;
+    if (batch?.teacherId === teacherId && batch?.teacherName) return batch.teacherName;
+    return teacherId || 'Unassigned';
+  };
+
+  const teacherSummary = (batch) => {
+    const ids = getBatchTeacherIds(batch);
+    const names = ids.map(id => teacherLabel(id, batch)).filter(Boolean);
+    if (!names.length && batch.teacherName) names.push(batch.teacherName);
+    if (!names.length) return 'Unassigned';
+    return names.length > 1 ? `${names[0]} +${names.length - 1} teachers` : names[0];
+  };
 
   const openAddDialog = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm(makeEmptyForm());
+    setSubjectDraft('');
     setShowDialog(true);
+  };
+
+  const toggleTeacher = (teacherId) => {
+    setForm(f => {
+      const current = Array.isArray(f.teacherIds) && f.teacherIds.length
+        ? f.teacherIds
+        : (f.teacherId ? [f.teacherId] : []);
+      const teacherIds = current.includes(teacherId)
+        ? current.filter(id => id !== teacherId)
+        : [...current, teacherId];
+      return { ...f, teacherIds, teacherId: teacherIds[0] || '' };
+    });
+  };
+
+  const addSubject = (raw = subjectDraft) => {
+    const value = String(raw || '').trim();
+    if (!value) return;
+    setForm(f => {
+      const current = Array.isArray(f.subjects) && f.subjects.length
+        ? f.subjects
+        : (f.subject ? [f.subject] : []);
+      const exists = current.some(s => s.toLowerCase() === value.toLowerCase());
+      const subjects = exists ? current : [...current, value];
+      return { ...f, subjects, subject: subjects[0] || '' };
+    });
+    setSubjectDraft('');
+  };
+
+  const removeSubject = (subject) => {
+    setForm(f => {
+      const subjects = (f.subjects || []).filter(s => s !== subject);
+      return { ...f, subjects, subject: subjects[0] || '' };
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const payload = { ...form, maxStudents: parseInt(form.maxStudents) || 30 };
+    const teacherIds = uniqueList(Array.isArray(form.teacherIds) ? form.teacherIds : []);
+    const subjects = uniqueList(Array.isArray(form.subjects) ? form.subjects : []);
+    const payload = {
+      ...form,
+      maxStudents: parseInt(form.maxStudents) || 30,
+      teacherId: multiTeacherEnabled ? (teacherIds[0] || form.teacherId || '') : (form.teacherId || ''),
+      subject: multiSubjectEnabled ? (subjects[0] || form.subject || '') : (form.subject || ''),
+    };
+
+    if (multiTeacherEnabled) {
+      payload.teacherIds = teacherIds.length ? teacherIds : (payload.teacherId ? [payload.teacherId] : []);
+    } else {
+      delete payload.teacherIds;
+    }
+
+    if (multiSubjectEnabled) {
+      payload.subjects = subjects.length ? subjects : (payload.subject ? [payload.subject] : []);
+    } else {
+      delete payload.subjects;
+    }
+
     if (editing) {
       await API.put(`/batches/${editing.id}`, payload);
     } else {
@@ -95,13 +249,28 @@ export default function BatchesPage() {
     }
     setShowDialog(false);
     setEditing(null);
-    setForm(emptyForm);
+    setForm(makeEmptyForm());
+    setSubjectDraft('');
     fetchBatches();
   };
 
   const handleEdit = (b) => {
+    const teacherIds = getBatchTeacherIds(b);
+    const subjects = getBatchSubjects(b);
     setEditing(b);
-    setForm({ batchName: b.batchName, courseName: b.courseName || '', subject: b.subject || '', teacherId: b.teacherId || '', classDuration: b.classDuration || '', scheduleDays: b.scheduleDays || [], startDate: b.startDate || '', maxStudents: b.maxStudents || 30 });
+    setForm({
+      batchName: b.batchName,
+      courseName: b.courseName || '',
+      subject: subjects[0] || b.subject || '',
+      teacherId: teacherIds[0] || b.teacherId || '',
+      teacherIds,
+      subjects,
+      classDuration: b.classDuration || '',
+      scheduleDays: b.scheduleDays || [],
+      startDate: b.startDate || '',
+      maxStudents: b.maxStudents || 30,
+    });
+    setSubjectDraft('');
     setShowDialog(true);
   };
 
@@ -183,7 +352,17 @@ export default function BatchesPage() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {batches.map(b => (
+        {batches.map(b => {
+          const subjectList = getBatchSubjects(b);
+          const teacherIdList = getBatchTeacherIds(b);
+          const batchSubjects = multiSubjectEnabled ? subjectList : (b.subject ? [b.subject] : subjectList.slice(0, 1));
+          const batchTeacherIds = multiTeacherEnabled ? teacherIdList : (b.teacherId ? [b.teacherId] : teacherIdList.slice(0, 1));
+          const batchTeacherNames = batchTeacherIds.map(id => teacherLabel(id, b)).filter(Boolean);
+          const teacherText = multiTeacherEnabled
+            ? teacherSummary(b)
+            : (b.teacherName || batchTeacherNames[0] || 'Unassigned');
+
+          return (
           <div
             key={b.id}
             data-testid={`batch-card-${b.id}`}
@@ -255,8 +434,23 @@ export default function BatchesPage() {
             </div>
 
             <div className="space-y-2.5">
-              <InfoRow icon={<BookOpen size={13} />}>{b.subject || 'General'}</InfoRow>
-              <InfoRow icon={<Users size={13} />}>{b.teacherName || 'Unassigned'} | {b.studentCount || 0} students</InfoRow>
+              {batchSubjects.length > 1 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {batchSubjects.map(subject => (
+                    <MiniChip key={subject} tone="blue">{subject}</MiniChip>
+                  ))}
+                </div>
+              ) : (
+                <InfoRow icon={<BookOpen size={13} />}>{batchSubjects[0] || 'General'}</InfoRow>
+              )}
+              <InfoRow icon={<Users size={13} />}>{teacherText} | {b.studentCount || 0} students</InfoRow>
+              {multiTeacherEnabled && batchTeacherNames.length > 1 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {batchTeacherNames.map(name => (
+                    <MiniChip key={name} tone="purple">{name}</MiniChip>
+                  ))}
+                </div>
+              )}
               <InfoRow icon={<Clock size={13} />}>{b.classDuration || 'N/A'}</InfoRow>
             </div>
 
@@ -282,7 +476,8 @@ export default function BatchesPage() {
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
 
         {!batches.length && (
           <div className="col-span-full py-14 text-center" style={glassCard}>
@@ -404,35 +599,144 @@ export default function BatchesPage() {
                     placeholder="Course name"
                   />
                 </div>
-                <div>
-                  <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase' }}>
-                    Subject
-                  </label>
-                  <DarkInput
-                    value={form.subject}
-                    onChange={e => setForm({ ...form, subject: e.target.value })}
-                    placeholder="Subject"
-                  />
-                </div>
+                {multiSubjectEnabled ? (
+                  <div className="sm:col-span-2">
+                    <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase' }}>
+                      Subjects
+                    </label>
+                    <div
+                      style={{
+                        ...INPUT,
+                        padding: 10,
+                        minHeight: 92,
+                      }}
+                    >
+                      <div className="flex flex-wrap gap-1.5 min-h-[24px]">
+                        {(form.subjects || []).length ? (
+                          form.subjects.map(subject => (
+                            <MiniChip key={subject} tone="blue" onRemove={() => removeSubject(subject)}>
+                              {subject}
+                            </MiniChip>
+                          ))
+                        ) : (
+                          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                            Add subjects for this batch
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          value={subjectDraft}
+                          onChange={e => setSubjectDraft(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              addSubject();
+                            }
+                          }}
+                          placeholder="Type subject and press Enter"
+                          className="min-w-0 flex-1 bg-transparent outline-none text-[13px]"
+                          style={{ color: 'rgba(255,255,255,0.88)' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => addSubject()}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-bold"
+                          style={{
+                            background: 'rgba(108,60,244,0.22)',
+                            border: '1px solid rgba(167,139,250,0.30)',
+                            color: '#c4b5fd',
+                          }}
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase' }}>
+                      Subject
+                    </label>
+                    <DarkInput
+                      value={form.subject}
+                      onChange={e => {
+                        const subject = e.target.value;
+                        setForm({ ...form, subject, subjects: subject ? [subject] : [] });
+                      }}
+                      placeholder="Subject"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
                 <label className="block mb-1.5" style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase' }}>
-                  Teacher
+                  {multiTeacherEnabled ? 'Teachers' : 'Teacher'}
                 </label>
-                <div className="relative">
-                  <select
-                    value={form.teacherId}
-                    onChange={e => setForm({ ...form, teacherId: e.target.value })}
-                    style={{ ...INPUT, paddingRight: 32, appearance: 'none', cursor: 'pointer' }}
-                    onFocus={focusInput}
-                    onBlur={blurInput}
+                {multiTeacherEnabled ? (
+                  <div
+                    style={{
+                      ...INPUT,
+                      padding: 10,
+                      minHeight: 118,
+                    }}
                   >
-                    <option value="" style={{ background: '#1a1625' }}>Assign Teacher</option>
-                    {teachers.map(t => <option key={t.id} value={t.id} style={{ background: '#1a1625' }}>{t.name} ({t.subjectExpertise || 'General'})</option>)}
-                  </select>
-                  <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'rgba(255,255,255,0.35)' }} />
-                </div>
+                    <div className="flex flex-wrap gap-1.5 min-h-[24px] mb-2">
+                      {(form.teacherIds || []).length ? (
+                        form.teacherIds.map(id => (
+                          <MiniChip key={id} tone="purple" onRemove={() => toggleTeacher(id)}>
+                            {teacherLabel(id)}
+                          </MiniChip>
+                        ))
+                      ) : (
+                        <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                          Select one or more teachers
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-32 overflow-y-auto pr-1">
+                      {teachers.map(t => {
+                        const selected = (form.teacherIds || []).includes(t.id);
+                        return (
+                          <button
+                            type="button"
+                            key={t.id}
+                            onClick={() => toggleTeacher(t.id)}
+                            className="text-left rounded-lg px-2.5 py-2 transition-colors"
+                            style={{
+                              background: selected ? 'rgba(108,60,244,0.22)' : 'rgba(255,255,255,0.045)',
+                              border: selected ? '1px solid rgba(167,139,250,0.34)' : '1px solid rgba(255,255,255,0.08)',
+                              color: 'rgba(255,255,255,0.86)',
+                            }}
+                          >
+                            <span className="block text-[12px] font-bold truncate">{t.name}</span>
+                            <span className="block text-[10px] truncate" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                              {t.subjectExpertise || 'General'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={form.teacherId}
+                      onChange={e => {
+                        const teacherId = e.target.value;
+                        setForm({ ...form, teacherId, teacherIds: teacherId ? [teacherId] : [] });
+                      }}
+                      style={{ ...INPUT, paddingRight: 32, appearance: 'none', cursor: 'pointer' }}
+                      onFocus={focusInput}
+                      onBlur={blurInput}
+                    >
+                      <option value="" style={{ background: '#1a1625' }}>Assign Teacher</option>
+                      {teachers.map(t => <option key={t.id} value={t.id} style={{ background: '#1a1625' }}>{t.name} ({t.subjectExpertise || 'General'})</option>)}
+                    </select>
+                    <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'rgba(255,255,255,0.35)' }} />
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
