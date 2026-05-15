@@ -53,12 +53,20 @@ const blurInput = e => {
 
 function channelLabel(channel) {
   if (channel === 'in_app') return 'In-App';
+  if (channel === 'email') return 'Email';
   if (channel === 'sms') return 'SMS';
   if (channel === 'whatsapp') return 'WhatsApp';
   return channel || 'Unknown';
 }
 
 function channelStyle(channel) {
+  if (channel === 'email') {
+    return {
+      background: 'rgba(59,130,246,0.13)',
+      color: '#93c5fd',
+      border: '1px solid rgba(96,165,250,0.24)',
+    };
+  }
   if (channel === 'sms') {
     return {
       background: 'rgba(16,185,129,0.12)',
@@ -269,7 +277,7 @@ export default function CommunicationPage() {
                   onBlur={blurInput}
                 >
                   <option value="in_app" style={{ background: '#1a1625' }}>In-App Notification</option>
-                  <option value="sms" style={{ background: '#1a1625' }}>SMS</option>
+                  <option value="email" style={{ background: '#1a1625' }}>Email</option>
                   <option value="whatsapp" style={{ background: '#1a1625' }}>WhatsApp</option>
                 </select>
                 <ChevronDown

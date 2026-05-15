@@ -3,6 +3,7 @@ import API from '@/api';
 import {
   ClipboardCheck, Check, X as XIcon, Clock, Save,
   Users, Calendar, ChevronDown, GraduationCap,
+  PauseCircle,
 } from 'lucide-react';
 
 // ─── Design tokens ─────────────────────────────────────────────
@@ -141,7 +142,7 @@ function StatCard({ icon: Icon, label, value, color, animClass }) {
 // ─── Attendance status toggle button ────────────────────────────
 // Segmented-pill style with dark glass tints.
 
-function StatusPill({ status, onClick, testId }) {
+function StatusPill({ status, onClick, testId, disabled = false }) {
   const cfg = {
     present: {
       bg:     'rgba(16,185,129,0.16)',
@@ -167,13 +168,22 @@ function StatusPill({ status, onClick, testId }) {
       label:  'Absent',
       hover:  'rgba(239,68,68,0.22)',
     },
+    suspended: {
+      bg:     'rgba(148,163,184,0.14)',
+      border: 'rgba(203,213,225,0.24)',
+      color:  '#cbd5e1',
+      icon:   <PauseCircle size={12} strokeWidth={2.5} />,
+      label:  'Suspended',
+      hover:  'rgba(148,163,184,0.14)',
+    },
   };
 
   const s = cfg[status] ?? cfg.present;
 
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       data-testid={testId}
       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold"
       style={{
@@ -181,21 +191,24 @@ function StatusPill({ status, onClick, testId }) {
         border:      `1px solid ${s.border}`,
         color:       s.color,
         transition:  'background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease',
-        cursor:      'pointer',
+        cursor:      disabled ? 'not-allowed' : 'pointer',
+        opacity:     disabled ? 0.75 : 1,
         userSelect:  'none',
       }}
       onMouseEnter={e => {
+        if (disabled) return;
         e.currentTarget.style.background = s.hover;
         e.currentTarget.style.transform  = 'scale(1.04)';
         e.currentTarget.style.boxShadow  = `0 2px 10px ${s.border}`;
       }}
       onMouseLeave={e => {
+        if (disabled) return;
         e.currentTarget.style.background = s.bg;
         e.currentTarget.style.transform  = 'none';
         e.currentTarget.style.boxShadow  = 'none';
       }}
-      onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.96)'; }}
-      onMouseUp={e   => { e.currentTarget.style.transform = 'scale(1.04)'; }}
+      onMouseDown={e => { if (!disabled) e.currentTarget.style.transform = 'scale(0.96)'; }}
+      onMouseUp={e   => { if (!disabled) e.currentTarget.style.transform = 'scale(1.04)'; }}
     >
       {s.icon}
       {s.label}
@@ -205,17 +218,18 @@ function StatusPill({ status, onClick, testId }) {
 
 // ─── Quick-action "mark all" chip ───────────────────────────────
 
-function MarkAllChip({ onClick, testId, icon: Icon, label, color }) {
+function MarkAllChip({ onClick, testId, icon: Icon, label, color, active = false }) {
   return (
     <button
       onClick={onClick}
       data-testid={testId}
       className="flex items-center gap-1.5 px-3.5 py-2 rounded-[10px] text-[11.5px] font-bold"
       style={{
-        background:  `${color}10`,
-        border:      `1px solid ${color}28`,
+        background:  active ? `${color}22` : `${color}10`,
+        border:      `1px solid ${active ? `${color}52` : `${color}28`}`,
         color,
         transition:  'background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease',
+        boxShadow:   active ? `0 3px 14px ${color}26` : 'none',
       }}
       onMouseEnter={e => {
         e.currentTarget.style.background = `${color}1e`;
@@ -223,8 +237,8 @@ function MarkAllChip({ onClick, testId, icon: Icon, label, color }) {
         e.currentTarget.style.transform  = 'translateY(-1px)';
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.background = `${color}10`;
-        e.currentTarget.style.boxShadow  = 'none';
+        e.currentTarget.style.background = active ? `${color}22` : `${color}10`;
+        e.currentTarget.style.boxShadow  = active ? `0 3px 14px ${color}26` : 'none';
         e.currentTarget.style.transform  = 'none';
       }}
     >
@@ -272,35 +286,89 @@ export default function AttendancePage() {
   const [existingAtt,   setExistingAtt]   = useState([]);
   const [saving,        setSaving]        = useState(false);
   const [saved,         setSaved]         = useState(false);
+  const [features,      setFeatures]      = useState({ late_attendance_enabled: false });
+  const [classSuspended, setClassSuspended] = useState(false);
+
+  const lateEnabled = Boolean(features.late_attendance_enabled);
 
   // ── Effects (unchanged) ────────────────────────────────────────
-  useEffect(() => { API.get('/batches').then(r => setBatches(r.data)); }, []);
+  useEffect(() => {
+    API.get('/batches').then(r => setBatches(r.data));
+    API.get('/settings/features')
+      .then(r => setFeatures({ late_attendance_enabled: false, ...(r.data || {}) }))
+      .catch(() => setFeatures({ late_attendance_enabled: false }));
+  }, []);
 
   useEffect(() => {
-    if (!selectedBatch) { setStudents([]); return; }
+    if (!selectedBatch) {
+      setStudents([]);
+      setAttendance({});
+      setExistingAtt([]);
+      setClassSuspended(false);
+      return;
+    }
+
+    let active = true;
+    setClassSuspended(false);
+    setExistingAtt([]);
+    setAttendance({});
+
     API.get('/students', { params: { batchId: selectedBatch } }).then(r => {
+      if (!active) return;
       setStudents(r.data);
       const defaults = {};
       r.data.forEach(s => { defaults[s.id] = 'present'; });
-      setAttendance(defaults);
+      setAttendance(prev => ({ ...defaults, ...prev }));
     });
+
+    return () => {
+      active = false;
+    };
   }, [selectedBatch]);
 
   useEffect(() => {
     if (!selectedBatch || !date) return;
+
+    let active = true;
+
     API.get('/attendance', { params: { batchId: selectedBatch, date } }).then(r => {
-      setExistingAtt(r.data);
+      if (!active) return;
+      const payload = r.data || [];
+      const records = Array.isArray(payload) ? payload : (payload.records || []);
+      const suspended = Boolean(
+        (!Array.isArray(payload) && (payload.classSuspended || payload.status === 'suspended')) ||
+        records.some(a => a.status === 'suspended' || a.classSuspended)
+      );
+
+      setExistingAtt(records);
+      setClassSuspended(suspended);
       const map = {};
-      r.data.forEach(a => { map[a.studentId] = a.status; });
+      records.forEach(a => {
+        const status = !lateEnabled && a.status === 'late' ? 'absent' : a.status;
+        map[a.studentId] = suspended ? 'suspended' : status;
+      });
       setAttendance(prev => ({ ...prev, ...map }));
     });
-  }, [selectedBatch, date]);
+
+    return () => {
+      active = false;
+    };
+  }, [selectedBatch, date, lateEnabled]);
 
   // ── Handlers (unchanged) ───────────────────────────────────────
   const toggleStatus = (sid) => {
     setAttendance(prev => {
-      const curr = prev[sid];
-      const next = curr === 'present' ? 'late' : curr === 'late' ? 'absent' : 'present';
+      if (classSuspended) return prev;
+
+      const curr = prev[sid] || 'present';
+      let next;
+
+      if (lateEnabled) {
+        next = curr === 'present' ? 'late' : curr === 'late' ? 'absent' : 'present';
+      } else {
+        next = curr === 'present' ? 'absent' : 'present';
+      }
+
       return { ...prev, [sid]: next };
     });
     setSaved(false);
@@ -309,23 +377,46 @@ export default function AttendancePage() {
   const markAll = (status) => {
     const map = {};
     students.forEach(s => { map[s.id] = status; });
+    setClassSuspended(false);
     setAttendance(map);
     setSaved(false);
   };
 
+  const toggleClassSuspended = () => {
+    setClassSuspended(prev => {
+      const next = !prev;
+      const map = {};
+      students.forEach(s => { map[s.id] = next ? 'suspended' : 'present'; });
+      setAttendance(map);
+      setSaved(false);
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     setSaving(true);
-    const records = Object.entries(attendance).map(([studentId, status]) => ({ studentId, status }));
-    await API.post('/attendance/mark', { batchId: selectedBatch, date, records });
+    const records = classSuspended
+      ? students.map(s => ({ studentId: s.id, status: 'suspended' }))
+      : Object.entries(attendance).map(([studentId, status]) => ({
+          studentId,
+          status: !lateEnabled && status === 'late' ? 'absent' : status,
+        }));
+    await API.post('/attendance/mark', { batchId: selectedBatch, date, classSuspended, records });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
   // ── Derived counts (unchanged) ─────────────────────────────────
-  const presentCount = Object.values(attendance).filter(v => v === 'present').length;
-  const lateCount    = Object.values(attendance).filter(v => v === 'late').length;
-  const absentCount  = Object.values(attendance).filter(v => v === 'absent').length;
+  const attendanceValues = Object.values(attendance);
+  const suspendedCount = classSuspended
+    ? students.length
+    : attendanceValues.filter(v => v === 'suspended').length;
+  const presentCount = classSuspended ? 0 : attendanceValues.filter(v => v === 'present').length;
+  const lateCount    = classSuspended || !lateEnabled ? 0 : attendanceValues.filter(v => v === 'late').length;
+  const absentCount  = classSuspended
+    ? 0
+    : attendanceValues.filter(v => v === 'absent' || (!lateEnabled && v === 'late')).length;
 
   // Formatted date for the chip display
   const displayDate = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', {
@@ -465,8 +556,9 @@ export default function AttendancePage() {
             {/* ── Stat cards ─────────────────────────────────── */}
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
               <StatCard icon={Check}          label="Present" value={presentCount} color="#10b981" />
-              <StatCard icon={Clock}          label="Late"    value={lateCount}    color="#f59e0b" />
+              {lateEnabled && <StatCard icon={Clock} label="Late" value={lateCount} color="#f59e0b" />}
               <StatCard icon={XIcon}          label="Absent"  value={absentCount}  color="#ef4444" />
+              {classSuspended && <StatCard icon={PauseCircle} label="Suspended" value={suspendedCount} color="#cbd5e1" />}
               <StatCard icon={ClipboardCheck} label="Total"   value={students.length} color="#7c4ff5" />
             </div>
 
@@ -484,14 +576,26 @@ export default function AttendancePage() {
                   <span className="text-[11px] font-semibold" style={{ color: '#34d399' }}>
                     {presentCount} present
                   </span>
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.20)' }}>·</span>
-                  <span className="text-[11px] font-semibold" style={{ color: '#fbbf24' }}>
-                    {lateCount} late
-                  </span>
+                  {lateEnabled && (
+                    <>
+                      <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.20)' }}>·</span>
+                      <span className="text-[11px] font-semibold" style={{ color: '#fbbf24' }}>
+                        {lateCount} late
+                      </span>
+                    </>
+                  )}
                   <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.20)' }}>·</span>
                   <span className="text-[11px] font-semibold" style={{ color: '#f87171' }}>
                     {absentCount} absent
                   </span>
+                  {classSuspended && (
+                    <>
+                      <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.20)' }}>·</span>
+                      <span className="text-[11px] font-semibold" style={{ color: '#cbd5e1' }}>
+                        {suspendedCount} suspended
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -505,14 +609,16 @@ export default function AttendancePage() {
                   label="All Present"
                   color="#10b981"
                 />
-                <MarkAllChip
-                  onClick={() => markAll('late')}
-                  data-testid="mark-all-late"
-                  testId="mark-all-late"
-                  icon={Clock}
-                  label="All Late"
-                  color="#f59e0b"
-                />
+                {lateEnabled && (
+                  <MarkAllChip
+                    onClick={() => markAll('late')}
+                    data-testid="mark-all-late"
+                    testId="mark-all-late"
+                    icon={Clock}
+                    label="All Late"
+                    color="#f59e0b"
+                  />
+                )}
                 <MarkAllChip
                   onClick={() => markAll('absent')}
                   data-testid="mark-all-absent"
@@ -521,10 +627,49 @@ export default function AttendancePage() {
                   label="All Absent"
                   color="#ef4444"
                 />
+                <MarkAllChip
+                  onClick={toggleClassSuspended}
+                  testId="mark-class-suspended"
+                  icon={PauseCircle}
+                  label="Class Suspended"
+                  color="#fbbf24"
+                  active={classSuspended}
+                />
               </div>
             </div>
 
             {/* ── Attendance table ────────────────────────────── */}
+            {classSuspended && (
+              <div
+                data-testid="class-suspended-banner"
+                className="flex items-start gap-3 px-5 py-4 mb-4"
+                style={{
+                  ...GLASS,
+                  background: 'linear-gradient(145deg, rgba(245,158,11,0.12), rgba(148,163,184,0.055))',
+                  border:     '1px solid rgba(251,191,36,0.22)',
+                }}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{
+                    background: 'rgba(245,158,11,0.13)',
+                    border:     '1px solid rgba(251,191,36,0.26)',
+                    color:      '#fbbf24',
+                  }}
+                >
+                  <PauseCircle size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold" style={{ color: T.primary }}>
+                    Class suspended for this date
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: T.secondary }}>
+                    Students will not be counted as present, absent, or late.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div
               className="mb-4 overflow-hidden"
               style={GLASS}
@@ -616,9 +761,14 @@ export default function AttendancePage() {
                         {/* Status toggle pill */}
                         <td className="px-5 py-3 text-center">
                           <StatusPill
-                            status={attendance[s.id] || 'present'}
+                            status={
+                              classSuspended
+                                ? 'suspended'
+                                : (!lateEnabled && attendance[s.id] === 'late' ? 'absent' : (attendance[s.id] || 'present'))
+                            }
                             onClick={() => toggleStatus(s.id)}
                             testId={`toggle-attendance-${s.id}`}
+                            disabled={classSuspended}
                           />
                         </td>
                       </tr>

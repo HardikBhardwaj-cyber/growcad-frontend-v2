@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import API from '@/api';
-import { Plus, X, CreditCard, Check, ChevronDown } from 'lucide-react';
+import { Plus, X, CreditCard, Check, ChevronDown, Pencil, Send } from 'lucide-react';
 
 // ─── Constants (unchanged) ─────────────────────────────────────
 
@@ -175,6 +175,37 @@ function StatusBadge({ status }) {
 
 // ─── Main component ────────────────────────────────────────────
 
+const emptyStructureForm = () => ({
+  batchId: '',
+  totalCourseFee: '',
+  paymentPlan: 'monthly',
+  firstDueDate: '',
+  numberOfInstallments: 1,
+  lateFeePerDay: 0,
+});
+
+function money(value) {
+  return `Rs.${Number(value || 0).toLocaleString()}`;
+}
+
+function getInstallmentDue(inst) {
+  return Math.max(0, Number(inst?.amount || 0) - Number(inst?.paidAmount || 0));
+}
+
+function getTotalPaid(sf) {
+  if (typeof sf?.totalPaid === 'number') return sf.totalPaid;
+  return (sf?.installments || []).reduce((sum, inst) => sum + Number(inst?.paidAmount || 0), 0);
+}
+
+function getTotalPending(sf) {
+  if (typeof sf?.totalPending === 'number') return sf.totalPending;
+  return (sf?.installments || []).reduce((sum, inst) => sum + getInstallmentDue(inst), 0);
+}
+
+function getNextPayIndex(sf) {
+  return (sf?.installments || []).findIndex(inst => getInstallmentDue(inst) > 0);
+}
+
 export default function FeesPage() {
   // ── State (unchanged) ─────────────────────────────────────────
   const [tab,                  setTab]                = useState('structures');
@@ -185,7 +216,9 @@ export default function FeesPage() {
   const [showPayDialog,        setShowPayDialog]      = useState(false);
   const [payData,              setPayData]            = useState({ studentFeeId: '', installmentIndex: 0, amount: 0 });
   const [payingStudent,        setPayingStudent]      = useState(null);
-  const [structureForm,        setStructureForm]      = useState({ batchId: '', totalCourseFee: '', paymentPlan: 'monthly', firstDueDate: '', numberOfInstallments: 1, lateFeePerDay: 0 });
+  const [structureForm,        setStructureForm]      = useState(emptyStructureForm());
+  const [editingStructure,     setEditingStructure]   = useState(null);
+  const [remindingId,          setRemindingId]        = useState('');
   const [batchFilter,          setBatchFilter]        = useState('');
 
   // ── Effects + handlers (unchanged) ────────────────────────────
@@ -204,31 +237,87 @@ export default function FeesPage() {
 
   useEffect(() => { fetchStudentFees(batchFilter); }, [batchFilter]); // eslint-disable-line
 
-  const handleCreateStructure = async (e) => {
+  const openCreateStructure = () => {
+    setEditingStructure(null);
+    setStructureForm(emptyStructureForm());
+    setShowStructureDialog(true);
+  };
+
+  const openEditStructure = (fs) => {
+    setEditingStructure(fs);
+    setStructureForm({
+      batchId: fs.batchId || '',
+      totalCourseFee: fs.totalCourseFee ?? '',
+      paymentPlan: fs.paymentPlan || 'monthly',
+      firstDueDate: fs.firstDueDate || '',
+      numberOfInstallments: fs.numberOfInstallments || 1,
+      lateFeePerDay: fs.lateFeePerDay || 0,
+    });
+    setShowStructureDialog(true);
+  };
+
+  const closeStructureDialog = () => {
+    setShowStructureDialog(false);
+    setEditingStructure(null);
+    setStructureForm(emptyStructureForm());
+  };
+
+  const handleSubmitStructure = async (e) => {
     e.preventDefault();
-    await API.post('/fee-structures', {
+    const payload = {
       ...structureForm,
       totalCourseFee:       parseFloat(structureForm.totalCourseFee),
       numberOfInstallments: parseInt(structureForm.numberOfInstallments),
       lateFeePerDay:        parseFloat(structureForm.lateFeePerDay) || 0,
-    });
-    setShowStructureDialog(false);
-    setStructureForm({ batchId: '', totalCourseFee: '', paymentPlan: 'monthly', firstDueDate: '', numberOfInstallments: 1, lateFeePerDay: 0 });
+    };
+
+    if (editingStructure) {
+      await API.put(`/fee-structures/${editingStructure.id}`, payload);
+    } else {
+      await API.post('/fee-structures', payload);
+    }
+
+    closeStructureDialog();
     fetchStructures();
+    fetchStudentFees(batchFilter);
   };
 
   const openPayDialog = (sf, instIdx) => {
-    const inst = sf.installments[instIdx];
+    const inst = sf.installments?.[instIdx];
+    const dueAmount = getInstallmentDue(inst);
     setPayingStudent(sf);
-    setPayData({ studentFeeId: sf.id, installmentIndex: instIdx, amount: inst.amount - (inst.paidAmount || 0) });
+    setPayData({ studentFeeId: sf.id, installmentIndex: instIdx, amount: dueAmount });
     setShowPayDialog(true);
+  };
+
+  const sendReminder = async (sf) => {
+    try {
+      setRemindingId(sf.id);
+      const res = await API.post('/fees/reminder', { studentFeeId: sf.id });
+      alert(res.data?.message || 'Reminder sent.');
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Could not send fee reminder.');
+    } finally {
+      setRemindingId('');
+    }
   };
 
   const handlePay = async (e) => {
     e.preventDefault();
-    await API.post('/fees/pay', { ...payData, amount: parseFloat(payData.amount) });
+    const res = await API.post('/fees/pay', { ...payData, amount: parseFloat(payData.amount) });
     setShowPayDialog(false);
     fetchStudentFees(batchFilter);
+
+    const applied = res.data?.appliedInstallments || [];
+    const paidCount = applied.filter(i => i.status === 'paid').length;
+    const partialCount = applied.filter(i => i.status === 'partial').length;
+    const summary = applied.length > 1
+      ? `Payment recorded. ${paidCount} installment${paidCount === 1 ? '' : 's'} paid${partialCount ? `, ${partialCount} partially paid` : ''}.`
+      : 'Payment recorded.';
+    alert(res.data?.receiptEmailSent
+      ? `${summary} Receipt sent to student email.`
+      : `${summary} Student email not found, receipt not sent.`
+    );
   };
 
   // ── Shared button styles ──────────────────────────────────────
@@ -237,6 +326,7 @@ export default function FeesPage() {
     boxShadow:  '0 3px 12px rgba(108,60,244,0.38)',
     transition: 'transform 0.15s ease, box-shadow 0.15s ease',
   };
+  const selectedInstallment = payingStudent?.installments?.[payData.installmentIndex] || null;
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -313,7 +403,7 @@ export default function FeesPage() {
             <div className="flex justify-end mb-4">
               <button
                 data-testid="add-fee-structure-button"
-                onClick={() => setShowStructureDialog(true)}
+                onClick={openCreateStructure}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-[10px] text-[12px] font-bold text-white"
                 style={btnPrimary}
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 5px 18px rgba(108,60,244,0.52)'; }}
@@ -338,21 +428,35 @@ export default function FeesPage() {
                   onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)'; e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.06)'; }}
                 >
                   {/* Card header */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div
-                      className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                      style={{ background: 'rgba(16,185,129,0.14)', border: '1px solid rgba(52,211,153,0.26)' }}
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+                        style={{ background: 'rgba(16,185,129,0.14)', border: '1px solid rgba(52,211,153,0.26)' }}
+                      >
+                        <CreditCard size={17} style={{ color: '#34d399' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-[13.5px] font-bold truncate" style={{ color: T.primary }}>
+                          {fs.batchName || 'Batch'}
+                        </h3>
+                        <p className="text-[10px] mt-0.5 capitalize" style={{ color: T.muted }}>
+                          {fs.paymentPlan?.replace('_', ' ')} Plan
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      data-testid={`edit-fee-structure-${fs.id}`}
+                      onClick={() => openEditStructure(fs)}
+                      className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
+                      title="Edit fee structure"
+                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#a78bfa' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(108,60,244,0.14)'; e.currentTarget.style.borderColor = 'rgba(167,139,250,0.30)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
                     >
-                      <CreditCard size={17} style={{ color: '#34d399' }} />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-[13.5px] font-bold truncate" style={{ color: T.primary }}>
-                        {fs.batchName || 'Batch'}
-                      </h3>
-                      <p className="text-[10px] mt-0.5 capitalize" style={{ color: T.muted }}>
-                        {fs.paymentPlan?.replace('_', ' ')} Plan
-                      </p>
-                    </div>
+                      <Pencil size={14} />
+                    </button>
                   </div>
 
                   {/* Detail rows */}
@@ -446,7 +550,9 @@ export default function FeesPage() {
                   </thead>
                   <tbody>
                     {studentFees.map(sf => {
-                      const nextPending = sf.installments?.findIndex(i => i.status !== 'paid');
+                      const nextPending = getNextPayIndex(sf);
+                      const totalPaid = getTotalPaid(sf);
+                      const totalPending = getTotalPending(sf);
                       return (
                         <tr
                           key={sf.id}
@@ -459,9 +565,16 @@ export default function FeesPage() {
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-2.5">
                               <Avatar name={sf.studentName} size={28} />
-                              <span className="text-[12.5px] font-semibold" style={{ color: T.primary }}>
-                                {sf.studentName}
-                              </span>
+                              <div className="min-w-0">
+                                <span className="block text-[12.5px] font-semibold truncate" style={{ color: T.primary }}>
+                                  {sf.studentName}
+                                </span>
+                                {sf.admissionDate && (
+                                  <span className="block text-[10px] mt-0.5" style={{ color: T.muted }}>
+                                    Joined: {sf.admissionDate}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
 
@@ -482,31 +595,52 @@ export default function FeesPage() {
 
                           {/* Paid */}
                           <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: '#34d399' }}>
-                            Rs.{sf.totalPaid?.toLocaleString()}
+                            {money(totalPaid)}
                           </td>
 
                           {/* Pending */}
-                          <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: sf.totalPending > 0 ? '#f87171' : T.muted }}>
-                            Rs.{sf.totalPending?.toLocaleString()}
+                          <td className="px-5 py-3 text-[12px] font-semibold" style={{ color: totalPending > 0 ? '#f87171' : T.muted }}>
+                            {money(totalPending)}
                           </td>
 
                           {/* Actions */}
                           <td className="px-5 py-3">
-                            {nextPending >= 0 && nextPending < sf.installments.length ? (
-                              <button
-                                data-testid={`pay-fee-${sf.id}`}
-                                onClick={() => openPayDialog(sf, nextPending)}
-                                className="text-[11px] px-3 py-1.5 rounded-[9px] font-bold text-white whitespace-nowrap"
-                                style={{
-                                  background: 'linear-gradient(135deg,#6C3CF4,#8b5cf6)',
-                                  boxShadow:  '0 2px 8px rgba(108,60,244,0.36)',
-                                  transition: 'transform 0.12s ease, box-shadow 0.12s ease',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(108,60,244,0.52)'; }}
-                                onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(108,60,244,0.36)'; }}
-                              >
-                                Record Payment
-                              </button>
+                            {nextPending >= 0 ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  data-testid={`send-fee-reminder-${sf.id}`}
+                                  onClick={() => sendReminder(sf)}
+                                  disabled={remindingId === sf.id}
+                                  className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0"
+                                  title="Send fee reminder"
+                                  style={{
+                                    background: 'rgba(245,158,11,0.10)',
+                                    border: '1px solid rgba(251,191,36,0.22)',
+                                    color: '#fbbf24',
+                                    opacity: remindingId === sf.id ? 0.55 : 1,
+                                    transition: 'background 0.12s ease, transform 0.12s ease',
+                                  }}
+                                  onMouseEnter={e => { if (remindingId !== sf.id) { e.currentTarget.style.background = 'rgba(245,158,11,0.17)'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.10)'; e.currentTarget.style.transform = 'none'; }}
+                                >
+                                  <Send size={14} />
+                                </button>
+                                <button
+                                  data-testid={`pay-fee-${sf.id}`}
+                                  onClick={() => openPayDialog(sf, nextPending)}
+                                  className="text-[11px] px-3 py-1.5 rounded-[9px] font-bold text-white whitespace-nowrap"
+                                  style={{
+                                    background: 'linear-gradient(135deg,#6C3CF4,#8b5cf6)',
+                                    boxShadow:  '0 2px 8px rgba(108,60,244,0.36)',
+                                    transition: 'transform 0.12s ease, box-shadow 0.12s ease',
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(108,60,244,0.52)'; }}
+                                  onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(108,60,244,0.36)'; }}
+                                >
+                                  Record Payment
+                                </button>
+                              </div>
                             ) : (
                               <StatusBadge status="paid" />
                             )}
@@ -570,15 +704,15 @@ export default function FeesPage() {
                   <CreditCard size={14} style={{ color: '#34d399' }} />
                 </div>
                 <h3 className="text-[14.5px] font-bold" style={{ color: T.primary }}>
-                  Create Fee Structure
+                  {editingStructure ? 'Edit Fee Structure' : 'Create Fee Structure'}
                 </h3>
               </div>
-              <CloseBtn onClick={() => setShowStructureDialog(false)} />
+              <CloseBtn onClick={closeStructureDialog} />
             </div>
 
             {/* Body */}
             <form
-              onSubmit={handleCreateStructure}
+              onSubmit={handleSubmitStructure}
               className="p-5 space-y-4 overflow-y-auto"
               style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(108,60,244,0.25) transparent' }}
             >
@@ -662,7 +796,7 @@ export default function FeesPage() {
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 5px 18px rgba(108,60,244,0.52)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 3px 12px rgba(108,60,244,0.38)'; }}
               >
-                Create Structure
+                {editingStructure ? 'Update Structure' : 'Create Structure'}
               </button>
             </form>
           </div>
@@ -710,9 +844,11 @@ export default function FeesPage() {
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 {[
-                  { label: 'Student',     value: payingStudent.studentName },
-                  { label: 'Installment', value: `#${payData.installmentIndex + 1}` },
-                  { label: 'Due Amount',  value: `Rs.${payingStudent.installments[payData.installmentIndex]?.amount?.toLocaleString()}`, highlight: true },
+                  { label: 'Student',        value: payingStudent.studentName },
+                  { label: 'Installment',    value: `#${payData.installmentIndex + 1}` },
+                  { label: 'Original Amount', value: money(selectedInstallment?.amount) },
+                  { label: 'Already Paid',   value: money(selectedInstallment?.paidAmount) },
+                  { label: 'Due Amount',     value: money(getInstallmentDue(selectedInstallment)), highlight: true },
                 ].map(({ label, value, highlight }) => (
                   <div key={label} className="flex items-center justify-between">
                     <span className="text-[11px]" style={{ color: T.label }}>{label}</span>

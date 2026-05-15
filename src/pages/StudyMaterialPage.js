@@ -72,10 +72,9 @@ const FORMAT_PURPOSES = {
   CSV: 'Question banks',
 };
 
-const ACCESS_OPTIONS = [
-  { value: 'admin_only', label: 'Admin Only', icon: Shield, color: '#cbd5e1' },
-  { value: 'all_students', label: 'All Students', icon: Users, color: '#c4b5fd' },
-  { value: 'batch', label: 'Particular Batch', icon: GraduationCap, color: '#93c5fd' },
+const ACCESS_BASE_OPTIONS = [
+  { value: 'admin_only', label: 'Admin Only', type: 'admin_only', icon: Shield, color: '#cbd5e1' },
+  { value: 'all_batches', label: 'All Batches', type: 'all_batches', icon: Users, color: '#c4b5fd' },
 ];
 
 const SORT_OPTIONS = [
@@ -140,7 +139,7 @@ const EMPTY_FORM = {
   title: '',
   description: '',
   materialType: 'Notes',
-  accessTarget: 'all_students',
+  accessTarget: 'all_batches',
   batchId: '',
   subject: '',
   chapter: '',
@@ -243,8 +242,66 @@ function getMaterialMeta(type) {
   return MATERIAL_TYPES.find(m => m.value === type) || MATERIAL_TYPES[0];
 }
 
+function normalizeAccessTarget(target) {
+  return target === 'all_students' ? 'all_batches' : (target || 'all_batches');
+}
+
+function getAccessOptions(batches = []) {
+  return [
+    ...ACCESS_BASE_OPTIONS,
+    ...batches.map(batch => ({
+      value: `batch:${batch.id}`,
+      label: batch.batchName,
+      type: 'batch',
+      batchId: batch.id,
+      batchName: batch.batchName,
+      icon: GraduationCap,
+      color: '#93c5fd',
+    })),
+  ];
+}
+
 function getAccessMeta(target) {
-  return ACCESS_OPTIONS.find(o => o.value === target) || ACCESS_OPTIONS[1];
+  const normalized = normalizeAccessTarget(target);
+  if (normalized === 'batch') {
+    return { value: 'batch', label: 'Batch', type: 'batch', icon: GraduationCap, color: '#93c5fd' };
+  }
+  return ACCESS_BASE_OPTIONS.find(o => o.value === normalized) || ACCESS_BASE_OPTIONS[1];
+}
+
+function getAccessSelectValue(form) {
+  const target = normalizeAccessTarget(form.accessTarget);
+  if (target === 'batch' && form.batchId) return `batch:${form.batchId}`;
+  return target;
+}
+
+function parseAccessSelection(value) {
+  if (value === 'admin_only') return { accessTarget: 'admin_only', batchId: '' };
+  if (value === 'all_batches' || value === 'all_students') return { accessTarget: 'all_batches', batchId: '' };
+  if (String(value || '').startsWith('batch:')) {
+    return { accessTarget: 'batch', batchId: String(value).replace('batch:', '') };
+  }
+  return { accessTarget: 'all_batches', batchId: '' };
+}
+
+function applyAccessSelection(value, setForm) {
+  const next = parseAccessSelection(value);
+  setForm(form => ({ ...form, ...next }));
+}
+
+function getFilterAccessValue(filters) {
+  if (!filters.accessTarget && !filters.batchId) return '';
+  if (filters.accessTarget === 'batch' && filters.batchId) return `batch:${filters.batchId}`;
+  return normalizeAccessTarget(filters.accessTarget);
+}
+
+function applyFilterAccessSelection(value, setFilters) {
+  if (!value) {
+    setFilters(filters => ({ ...filters, accessTarget: '', batchId: '' }));
+    return;
+  }
+  const next = parseAccessSelection(value);
+  setFilters(filters => ({ ...filters, ...next }));
 }
 
 function TypeBadge({ type }) {
@@ -273,10 +330,15 @@ function SmallBadge({ children, color = '#c4b5fd', bg = 'rgba(108,60,244,0.12)',
   );
 }
 
-function targetLabel(material) {
-  if (material.accessTarget === 'admin_only') return 'Admin Only';
-  if (material.accessTarget === 'batch') return material.batchName || 'Batch';
-  return 'All Students';
+function targetLabel(material, batches = []) {
+  const target = normalizeAccessTarget(material.accessTarget);
+  if (target === 'admin_only') return 'Admin Only';
+  if (target === 'all_batches') return 'All Batches';
+  if (target === 'batch') {
+    const batch = batches.find(b => b.id === material.batchId);
+    return material.batchName || batch?.batchName || 'Batch';
+  }
+  return 'All Batches';
 }
 
 function uploadToSignedUrl(uploadUrl, file, onProgress) {
@@ -346,7 +408,7 @@ function StorageCard({ storage }) {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 min-w-0 lg:min-w-[520px]">
           {[
             ['Remaining', formatBytes(storage.remainingBytes)],
-            ['Students', storage.activeStudentCount || 0],
+            ['Plan Capacity', storage.studentCapacity || storage.activeStudentCount || 0],
             ['Base quota', `${storage.baseQuotaGb || 0} GB`],
             ['Extra storage', `${storage.additionalStorageGb || 0} GB`],
           ].map(([label, value]) => (
@@ -382,6 +444,7 @@ function UploadMaterialDialog({ batches, onClose, onDone }) {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const accessOptions = useMemo(() => getAccessOptions(batches), [batches]);
 
   const format = file ? getFileFormat(file.name) : '';
   const unsupported = file && !FORMAT_PURPOSES[format];
@@ -514,28 +577,21 @@ function UploadMaterialDialog({ batches, onClose, onDone }) {
           </Field>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Access Target">
-              <DarkSelect
-                data-testid="material-target-select"
-                value={form.accessTarget}
-                onChange={e => setField('accessTarget', e.target.value)}
-              >
-                {ACCESS_OPTIONS.map(option => <option key={option.value} value={option.value} style={{ background: '#1a1625' }}>{option.label}</option>)}
-              </DarkSelect>
-            </Field>
-            {form.accessTarget === 'batch' && (
-              <Field label="Batch">
+            <div className="md:col-span-2">
+              <Field label="Access Target">
                 <DarkSelect
-                  data-testid="material-batch-select"
-                  required
-                  value={form.batchId}
-                  onChange={e => setField('batchId', e.target.value)}
+                  data-testid="material-target-select"
+                  value={getAccessSelectValue(form)}
+                  onChange={e => {
+                    applyAccessSelection(e.target.value, setForm);
+                    setError('');
+                  }}
                 >
-                  <option value="" style={{ background: '#1a1625' }}>Select batch</option>
-                  {batches.map(batch => <option key={batch.id} value={batch.id} style={{ background: '#1a1625' }}>{batch.batchName}</option>)}
+                  {accessOptions.map(option => <option key={option.value} value={option.value} style={{ background: '#1a1625' }}>{option.label}</option>)}
                 </DarkSelect>
               </Field>
-            )}
+            </div>
+            <input type="hidden" data-testid="material-batch-select" value={form.batchId} readOnly />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -631,7 +687,7 @@ function EditMaterialDialog({ material, batches, onClose, onDone }) {
     title: material.title || '',
     description: material.description || '',
     materialType: material.materialType || 'Notes',
-    accessTarget: material.accessTarget || 'all_students',
+    accessTarget: normalizeAccessTarget(material.accessTarget),
     batchId: material.batchId || '',
     subject: material.subject || '',
     chapter: material.chapter || '',
@@ -640,6 +696,7 @@ function EditMaterialDialog({ material, batches, onClose, onDone }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const accessOptions = useMemo(() => getAccessOptions(batches), [batches]);
 
   const setField = (key, value) => {
     setForm(f => ({ ...f, [key]: value }));
@@ -695,20 +752,22 @@ function EditMaterialDialog({ material, batches, onClose, onDone }) {
                 {MATERIAL_TYPES.map(type => <option key={type.value} value={type.value} style={{ background: '#1a1625' }}>{type.value}</option>)}
               </DarkSelect>
             </Field>
-            <Field label="Access Target">
-              <DarkSelect value={form.accessTarget} onChange={e => setField('accessTarget', e.target.value)}>
-                {ACCESS_OPTIONS.map(option => <option key={option.value} value={option.value} style={{ background: '#1a1625' }}>{option.label}</option>)}
-              </DarkSelect>
-            </Field>
+            <div className="md:col-span-2">
+              <Field label="Access Target">
+                <DarkSelect
+                  data-testid="material-target-select"
+                  value={getAccessSelectValue(form)}
+                  onChange={e => {
+                    applyAccessSelection(e.target.value, setForm);
+                    setError('');
+                  }}
+                >
+                  {accessOptions.map(option => <option key={option.value} value={option.value} style={{ background: '#1a1625' }}>{option.label}</option>)}
+                </DarkSelect>
+              </Field>
+            </div>
           </div>
-          {form.accessTarget === 'batch' && (
-            <Field label="Batch">
-              <DarkSelect value={form.batchId} onChange={e => setField('batchId', e.target.value)}>
-                <option value="" style={{ background: '#1a1625' }}>Select batch</option>
-                {batches.map(batch => <option key={batch.id} value={batch.id} style={{ background: '#1a1625' }}>{batch.batchName}</option>)}
-              </DarkSelect>
-            </Field>
-          )}
+          <input type="hidden" data-testid="material-batch-select" value={form.batchId} readOnly />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Field label="Subject"><DarkInput value={form.subject} onChange={e => setField('subject', e.target.value)} /></Field>
             <Field label="Chapter"><DarkInput value={form.chapter} onChange={e => setField('chapter', e.target.value)} /></Field>
@@ -819,6 +878,7 @@ export default function StudyMaterialPage() {
   });
 
   const nearStorageLimit = canManage && storage && Number(storage.usagePercent || 0) >= 80;
+  const accessFilterOptions = useMemo(() => getAccessOptions(batches), [batches]);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -967,14 +1027,15 @@ export default function StudyMaterialPage() {
               <option value="" style={{ background: '#1a1625' }}>All Formats</option>
               {Object.keys(FORMAT_PURPOSES).map(format => <option key={format} value={format} style={{ background: '#1a1625' }}>{format}</option>)}
             </DarkSelect>
-            <DarkSelect data-testid="study-material-target-filter" value={filters.accessTarget} onChange={e => setFilter('accessTarget', e.target.value)}>
+            <DarkSelect
+              data-testid="study-material-target-filter"
+              value={getFilterAccessValue(filters)}
+              onChange={e => applyFilterAccessSelection(e.target.value, setFilters)}
+            >
               <option value="" style={{ background: '#1a1625' }}>All Access</option>
-              {ACCESS_OPTIONS.map(option => <option key={option.value} value={option.value} style={{ background: '#1a1625' }}>{option.label}</option>)}
+              {accessFilterOptions.map(option => <option key={option.value} value={option.value} style={{ background: '#1a1625' }}>{option.label}</option>)}
             </DarkSelect>
-            <DarkSelect data-testid="study-material-batch-filter" value={filters.batchId} onChange={e => setFilter('batchId', e.target.value)}>
-              <option value="" style={{ background: '#1a1625' }}>All Batches</option>
-              {batches.map(batch => <option key={batch.id} value={batch.id} style={{ background: '#1a1625' }}>{batch.batchName}</option>)}
-            </DarkSelect>
+            <input type="hidden" data-testid="study-material-batch-filter" value={filters.batchId} readOnly />
             <DarkSelect value={filters.sort} onChange={e => setFilter('sort', e.target.value)}>
               {SORT_OPTIONS.map(option => <option key={option.value} value={option.value} style={{ background: '#1a1625' }}>{option.label}</option>)}
             </DarkSelect>
@@ -1044,7 +1105,7 @@ export default function StudyMaterialPage() {
                       <td className="px-5 py-4">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold" style={{ background: 'rgba(255,255,255,0.055)', border: '1px solid rgba(255,255,255,0.10)', color: access.color }}>
                           <AccessIcon size={11} />
-                          {targetLabel(material)}
+                          {targetLabel(material, batches)}
                         </span>
                       </td>
                       <td className="px-5 py-4">

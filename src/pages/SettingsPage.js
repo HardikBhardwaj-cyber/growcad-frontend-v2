@@ -298,6 +298,7 @@ export default function SettingsPage() {
     API.get('/settings/features').then(r => setFeatureFlags({
       multi_teacher_batches_enabled: false,
       multi_subject_batches_enabled: false,
+      late_attendance_enabled: false,
       ...(r.data || {}),
     }));
     API.get('/institute/plan').then(r => setCurrentPlan(r.data.plan));
@@ -380,6 +381,7 @@ export default function SettingsPage() {
     { key: 'communication_enabled', label: 'Communication Center', desc: 'Send messages to students' },
     { key: 'multi_teacher_batches_enabled', label: 'Multi-Teacher Batches', desc: 'Assign multiple teachers to one batch', icon: Users },
     { key: 'multi_subject_batches_enabled', label: 'Multi-Subject Batches', desc: 'Add multiple subjects to one batch', icon: BookOpen },
+    { key: 'late_attendance_enabled', label: 'Late Attendance', desc: 'Allow marking students as late and show late metrics', icon: Clock },
   ];
 
   const channelConfig = [
