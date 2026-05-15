@@ -162,6 +162,14 @@ export default function StudentProfilePage() {
 
   const { student, batch, attendance, fees, tests } = data;
   const displayStudentId = getDisplayStudentId(student, id);
+  const studentBatchNames = (
+    Array.isArray(student.batchNames) && student.batchNames.length
+      ? student.batchNames
+      : Array.isArray(data.batches) && data.batches.length
+        ? data.batches.map(b => b.batchName).filter(Boolean)
+        : (batch?.batchName ? [batch.batchName] : [])
+  );
+  const batchSummary = studentBatchNames.length ? studentBatchNames.join(', ') : 'No batch assigned';
 
   return (
     <div data-testid="student-profile-page" className="space-y-5 animate-fade-in">
@@ -185,7 +193,7 @@ export default function StudentProfilePage() {
         <div className="min-w-0">
           <h1 className="text-[1.55rem] font-bold tracking-tight truncate" style={{ color: PRIMARY }}>{student.name}</h1>
           <p className="text-xs mt-1 truncate" style={{ color: MUTED }}>
-            {batch?.batchName || 'No batch assigned'}
+            {batchSummary}
             <span className="text-white/20 px-1.5">|</span>
             {displayStudentId}
             <span className="text-white/20 px-1.5">|</span>
@@ -216,7 +224,7 @@ export default function StudentProfilePage() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {[['Phone', student.phoneNumber], ['Parent Phone', student.parentPhoneNumber], ['Batch', batch?.batchName], ['Admission', student.admissionDate]].map(([l, v]) => (
+            {[['Phone', student.phoneNumber], ['Parent Phone', student.parentPhoneNumber], ['Student ID', displayStudentId], ['Batches', batchSummary], ['Admission', student.admissionDate]].map(([l, v]) => (
               <InfoItem key={l} label={l} value={v || '-'} />
             ))}
           </div>

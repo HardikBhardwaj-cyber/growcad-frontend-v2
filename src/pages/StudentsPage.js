@@ -39,7 +39,7 @@ function DarkInput({ style = {}, ...props }) {
 
 const emptyForm = {
   name: '', phoneNumber: '', parentPhoneNumber: '',
-  email: '', batchId: '', admissionDate: '',
+  email: '', batchId: '', batchIds: [], admissionDate: '',
 };
 
 // ─── Avatar ────────────────────────────────────────────────────
@@ -91,6 +91,12 @@ function BatchBadge({ name }) {
 
 // ─── Page ──────────────────────────────────────────────────────
 
+function displayStudentCode(s) {
+  if (s?.studentCode) return s.studentCode;
+  if (s?.studentId && String(s.studentId).startsWith('STU-')) return s.studentId;
+  return `STU-${String(s?.id || '').replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+}
+
 export default function StudentsPage() {
   const { user }  = useAuth();
   const isAdmin   = user?.role === 'admin';
@@ -135,10 +141,16 @@ export default function StudentsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const batchIds = form.batchIds || [];
+    const payload = {
+      ...form,
+      batchIds,
+      batchId: batchIds[0] || form.batchId || '',
+    };
     if (editing) {
-      await API.put(`/students/${editing.id}`, form);
+      await API.put(`/students/${editing.id}`, payload);
     } else {
-      await API.post('/students', form);
+      await API.post('/students', payload);
     }
     setShowDialog(false);
     setEditing(null);
@@ -148,12 +160,16 @@ export default function StudentsPage() {
 
   const handleEdit = (s) => {
     setEditing(s);
+    const batchIds = Array.isArray(s.batchIds) && s.batchIds.length
+      ? s.batchIds
+      : (s.batchId ? [s.batchId] : []);
     setForm({
       name:              s.name,
       phoneNumber:       s.phoneNumber       || '',
       parentPhoneNumber: s.parentPhoneNumber || '',
       email:             s.email             || '',
-      batchId:           s.batchId           || '',
+      batchId:           s.batchId || batchIds[0] || '',
+      batchIds,
       admissionDate:     s.admissionDate     || '',
     });
     setShowDialog(true);
@@ -188,6 +204,32 @@ export default function StudentsPage() {
   };
 
   const batchName = (id) => batches.find(b => b.id === id)?.batchName || '-';
+  const batchById = (id) => batches.find(b => b.id === id);
+
+  const getStudentBatchIds = (s) => {
+    if (Array.isArray(s?.batchIds) && s.batchIds.length) return s.batchIds;
+    return s?.batchId ? [s.batchId] : [];
+  };
+
+  const getStudentBatchNames = (s) => {
+    if (Array.isArray(s?.batchNames) && s.batchNames.length) return s.batchNames;
+    return getStudentBatchIds(s).map(id => batchName(id)).filter(Boolean).filter(name => name !== '-');
+  };
+
+  const addBatch = (id) => {
+    if (!id) return;
+    setForm(f => {
+      const batchIds = Array.from(new Set([...(f.batchIds || []), id]));
+      return { ...f, batchIds, batchId: batchIds[0] || '' };
+    });
+  };
+
+  const removeBatch = (id) => {
+    setForm(f => {
+      const batchIds = (f.batchIds || []).filter(x => x !== id);
+      return { ...f, batchIds, batchId: batchIds[0] || '' };
+    });
+  };
 
   // ── Reusable button style objects ─────────────────────────────────
 
@@ -386,32 +428,59 @@ export default function StudentsPage() {
             <table className="w-full dark-table" data-testid="student-table">
               <thead>
                 <tr>
-                  <th className="text-left">Name</th>
+                  <th className="text-left">Student</th>
+                  <th className="text-left hidden xl:table-cell">Student ID</th>
                   <th className="text-left hidden md:table-cell">Phone</th>
                   <th className="text-left hidden lg:table-cell">Email</th>
-                  <th className="text-left">Batch</th>
+                  <th className="text-left">Batches</th>
                   <th className="text-left" style={{ width: 110 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {students.map(s => (
+                {students.map(s => {
+                  const studentBatchNames = getStudentBatchNames(s);
+                  return (
                   <tr key={s.id} data-testid={`student-row-${s.id}`}>
 
                     {/* Name */}
                     <td>
                       <div className="flex items-center gap-2.5">
                         <Avatar name={s.name} size={30} />
-                        <Link
-                          to={`/students/${s.id}`}
-                          data-testid={`student-link-${s.id}`}
-                          className="font-semibold"
-                          style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, transition: 'color 0.12s ease' }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#a78bfa'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.88)'}
-                        >
-                          {s.name}
-                        </Link>
+                        <div className="min-w-0">
+                          <Link
+                            to={`/students/${s.id}`}
+                            data-testid={`student-link-${s.id}`}
+                            className="font-semibold"
+                            style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, transition: 'color 0.12s ease' }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#a78bfa'}
+                            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.88)'}
+                          >
+                            {s.name}
+                          </Link>
+                          <div className="xl:hidden mt-0.5" style={{ color: 'rgba(255,255,255,0.38)', fontSize: 10 }}>
+                            {displayStudentCode(s)}
+                          </div>
+                        </div>
                       </div>
+                    </td>
+
+                    {/* Student ID */}
+                    <td className="hidden xl:table-cell">
+                      <span
+                        data-testid={`student-code-${s.id}`}
+                        className="font-semibold"
+                        style={{
+                          fontSize: 11,
+                          padding: '3px 9px',
+                          borderRadius: 99,
+                          background: 'rgba(108,60,244,0.12)',
+                          color: '#c4b5fd',
+                          border: '1px solid rgba(108,60,244,0.22)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {displayStudentCode(s)}
+                      </span>
                     </td>
 
                     {/* Phone */}
@@ -424,9 +493,32 @@ export default function StudentsPage() {
                       {s.email || '—'}
                     </td>
 
-                    {/* Batch */}
-                    <td>
-                      <BatchBadge name={batchName(s.batchId)} />
+                    {/* Batches */}
+                    <td data-testid={`student-batches-${s.id}`}>
+                      <div className="flex flex-wrap gap-1.5">
+                        {studentBatchNames.length ? (
+                          <>
+                            {studentBatchNames.slice(0, 2).map(name => <BatchBadge key={name} name={name} />)}
+                            {studentBatchNames.length > 2 && (
+                              <span
+                                className="font-semibold"
+                                style={{
+                                  fontSize: 11,
+                                  padding: '2px 8px',
+                                  borderRadius: 99,
+                                  background: 'rgba(255,255,255,0.06)',
+                                  color: 'rgba(255,255,255,0.58)',
+                                  border: '1px solid rgba(255,255,255,0.10)',
+                                }}
+                              >
+                                +{studentBatchNames.length - 2}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <BatchBadge name="-" />
+                        )}
+                      </div>
                     </td>
 
                     {/* Actions */}
@@ -491,12 +583,13 @@ export default function StudentsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+                })}
 
                 {/* Empty state */}
                 {!students.length && (
                   <tr>
-                    <td colSpan={5} style={{ padding: '52px 16px', textAlign: 'center', border: 'none' }}>
+                    <td colSpan={6} style={{ padding: '52px 16px', textAlign: 'center', border: 'none' }}>
                       <div className="flex flex-col items-center gap-3">
                         <div
                           className="w-12 h-12 rounded-2xl flex items-center justify-center"
@@ -674,28 +767,65 @@ export default function StudentsPage() {
                 </div>
               </div>
 
-              {/* Batch */}
+              {/* Batches */}
               <div>
                 <label className="block mb-1.5"
                   style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.38)', textTransform: 'uppercase' }}>
-                  Batch
+                  Batches
                 </label>
                 <div className="relative">
                   <select
                     data-testid="student-form-batch"
-                    value={form.batchId}
-                    onChange={e => setForm({ ...form, batchId: e.target.value })}
+                    value=""
+                    onChange={e => addBatch(e.target.value)}
                     style={{ ...INPUT, paddingRight: 32, appearance: 'none', cursor: 'pointer' }}
                     onFocus={e => { e.currentTarget.style.borderColor = 'rgba(108,60,244,0.65)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(108,60,244,0.14)'; }}
                     onBlur={e =>  { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.10)'; e.currentTarget.style.boxShadow = 'none'; }}
                   >
-                    <option value="" style={{ background: '#1a1625' }}>Select batch</option>
-                    {batches.map(b => (
+                    <option value="" style={{ background: '#1a1625' }}>Add batch</option>
+                    {batches.filter(b => !(form.batchIds || []).includes(b.id)).map(b => (
                       <option key={b.id} value={b.id} style={{ background: '#1a1625' }}>{b.batchName}</option>
                     ))}
                   </select>
                   <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
                     style={{ color: 'rgba(255,255,255,0.35)' }} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(form.batchIds || []).map(batchId => {
+                    const batch = batchById(batchId);
+                    return (
+                      <span
+                        key={batchId}
+                        data-testid={`student-form-batch-chip-${batchId}`}
+                        className="inline-flex items-center gap-1.5 font-semibold"
+                        style={{
+                          fontSize: 11,
+                          padding: '5px 8px',
+                          borderRadius: 99,
+                          background: 'rgba(108,60,244,0.14)',
+                          color: '#c4b5fd',
+                          border: '1px solid rgba(108,60,244,0.26)',
+                        }}
+                      >
+                        {batch?.batchName || batchId}
+                        <button
+                          type="button"
+                          data-testid={`remove-student-form-batch-${batchId}`}
+                          onClick={() => removeBatch(batchId)}
+                          className="rounded-full"
+                          style={{ color: 'rgba(255,255,255,0.55)' }}
+                          aria-label={`Remove ${batch?.batchName || batchId}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    );
+                  })}
+                  {!(form.batchIds || []).length && (
+                    <span style={{ color: 'rgba(255,255,255,0.34)', fontSize: 11 }}>
+                      Select one or more batches
+                    </span>
+                  )}
                 </div>
               </div>
 

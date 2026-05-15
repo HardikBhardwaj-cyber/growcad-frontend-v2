@@ -14,8 +14,8 @@ export default function CSVUploadDialog({ open, onClose, type, onSuccess }) {
 
   const csvTemplates = {
     students: {
-      headers: 'name,phone,parentPhone,email,batch',
-      example: 'Rahul Kumar,9876543210,9876543211,rahul@email.com,NEET 2026',
+      headers: 'name,phone,parentPhone,email,batchNames,batchIds',
+      example: 'Rahul Kumar,9876543210,9876543211,rahul@email.com,NEET 2026;JEE Advanced 2026,',
     },
     teachers: {
       headers: 'name,phone,email,subject',
