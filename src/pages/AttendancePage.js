@@ -631,7 +631,7 @@ export default function AttendancePage() {
                   onClick={toggleClassSuspended}
                   testId="mark-class-suspended"
                   icon={PauseCircle}
-                  label="Class Suspended"
+                  label="Class Off"
                   color="#fbbf24"
                   active={classSuspended}
                 />
